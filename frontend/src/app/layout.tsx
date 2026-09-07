@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import React from "react";
 import { Geist, Geist_Mono, Bebas_Neue, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -37,6 +37,17 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains",
   display: "swap",
 });
+
+// Viewport must be exported separately in the App Router — NOT inside `metadata`.
+// Without this, real mobile browsers render at ~980px desktop width then scale down,
+// which breaks layouts. DevTools emulation injects its own viewport so it masks the bug.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#c8f135",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -127,7 +138,6 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#c8f135" />
       </head>
       <body className="bg-black text-white font-sans">
         {/* Global dot-grid background — visible site-wide */}

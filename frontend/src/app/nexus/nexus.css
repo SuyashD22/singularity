@@ -1,6 +1,543 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
+/* ── Singularity Design Tokens for Nexus Admin ── */
+:root {
+  color-scheme: dark;
+  --nx-bg: #111010;
+  --nx-surface: #1A1918;
+  --nx-surface-2: #222120;
+  --nx-border: #2E2C2B;
+  --nx-lime: #c8f135;
+  --nx-lime-dim: rgba(200, 241, 53, 0.08);
+  --nx-lime-border: rgba(200, 241, 53, 0.25);
+  --nx-pink: #ff2d6f;
+  --nx-amber: #ffb830;
+  --nx-purple: #a78bfa;
+  --nx-text: #F0EDE8;
+  --nx-muted: #888580;
+  --nx-radius: 4px;
+  --nx-shadow: 4px 4px 0px var(--nx-lime);
+  --nx-shadow-sm: 2px 2px 0px var(--nx-lime);
+  --nx-shadow-red: 4px 4px 0px var(--nx-pink);
+
+  /* ── Font Family Tokens ── */
+  --nx-font-mono: var(--font-jetbrains), "JetBrains Mono", "Courier New", monospace;
+  --nx-font-sans: var(--font-space-grotesk), "Space Grotesk", sans-serif;
+}
+
+/* ── 1. Navbar Font & Links: JetBrains Mono (Image 1 & Singularity UI) ── */
+.nx-navbar,
+.nx-navbar *,
+.nx-mobile-menu,
+.nx-mobile-menu * {
+  font-family: var(--nx-font-mono) !important;
+}
+
+.nx-nav-link {
+  font-family: var(--nx-font-mono) !important;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #F0EDE8;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+  transition: color 0.35s ease, transform 0.35s ease;
+}
+
+.nx-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 0;
+  height: 2px;
+  background: #ffffff;
+  transition: width 0.35s ease;
+}
+
+.nx-nav-link:hover {
+  color: #c8f135 !important;
+  transform: scale(1.1);
+}
+
+.nx-nav-link:hover::after {
+  width: 100%;
+}
+
+.nx-nav-link-active {
+  color: #c8f135 !important;
+}
+
+.nx-nav-link-active::after {
+  width: 100% !important;
+  background: #ffffff !important;
+}
+
+/* ── 2. Content in the pages: Space Grotesk (Image 2) ── */
+.nx-admin-root,
+.nx-content,
+.nx-content *:not(.nx-mono):not(.nx-mono *):not(code):not(pre) {
+  font-family: var(--nx-font-sans) !important;
+}
+
+/* Technical / code elements can use JetBrains Mono */
+.nx-mono,
+.nx-mono *,
+code,
+pre {
+  font-family: var(--nx-font-mono) !important;
+}
+
+/* ── Basic Resets for Nexus ── */
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: 100%;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+button { cursor: pointer; }
+
+/* ── Topo background pattern (matches public site) ── */
+.nx-topo {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.5' opacity='0.04'%3E%3Cellipse cx='400' cy='400' rx='50' ry='30'/%3E%3Cellipse cx='400' cy='400' rx='100' ry='65'/%3E%3Cellipse cx='400' cy='400' rx='155' ry='105'/%3E%3Cellipse cx='400' cy='400' rx='215' ry='150'/%3E%3Cellipse cx='400' cy='400' rx='280' ry='200'/%3E%3Cellipse cx='400' cy='400' rx='350' ry='255'/%3E%3Cellipse cx='200' cy='200' rx='60' ry='40'/%3E%3Cellipse cx='200' cy='200' rx='110' ry='75'/%3E%3Cellipse cx='200' cy='200' rx='165' ry='115'/%3E%3Cellipse cx='600' cy='600' rx='70' ry='45'/%3E%3Cellipse cx='600' cy='600' rx='130' ry='90'/%3E%3Cellipse cx='600' cy='600' rx='200' ry='145'/%3E%3Cellipse cx='650' cy='200' rx='55' ry='35'/%3E%3Cellipse cx='650' cy='200' rx='105' ry='70'/%3E%3Cellipse cx='100' cy='650' rx='80' ry='50'/%3E%3Cellipse cx='100' cy='650' rx='140' ry='95'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Cards ── */
+.nx-card {
+  background: var(--nx-surface);
+  border: 2px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+  padding: 24px;
+  box-shadow: var(--nx-shadow);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  position: relative;
+}
+.nx-card:hover {
+  transform: translate(2px, 2px);
+  box-shadow: var(--nx-shadow-sm);
+}
+.nx-card-active { border-color: var(--nx-lime); }
+.nx-card-flat {
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+  padding: 24px;
+}
+
+/* ── Buttons ── */
+.nx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--nx-lime);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: var(--nx-radius);
+  white-space: nowrap;
+}
+.nx-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.nx-btn-primary {
+  background: var(--nx-lime);
+  color: #111010;
+  border-color: var(--nx-lime);
+  box-shadow: none;
+}
+.nx-btn-primary:hover:not(:disabled) {
+  background: #d8fc42;
+  border-color: #d8fc42;
+  transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(200, 241, 53, 0.4);
+}
+.nx-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+.nx-btn-outline {
+  background: transparent;
+  color: var(--nx-lime);
+  box-shadow: var(--nx-shadow);
+}
+.nx-btn-outline:hover:not(:disabled) {
+  background: var(--nx-lime-dim);
+  transform: translate(2px, 2px);
+  box-shadow: var(--nx-shadow-sm);
+}
+.nx-btn-ghost {
+  background: transparent;
+  color: var(--nx-muted);
+  border-color: var(--nx-border);
+  box-shadow: none;
+}
+.nx-btn-ghost:hover:not(:disabled) {
+  color: var(--nx-text);
+  border-color: var(--nx-lime-border);
+  background: var(--nx-lime-dim);
+}
+.nx-btn-danger {
+  background: transparent;
+  color: var(--nx-pink);
+  border-color: rgba(255, 45, 111, 0.35);
+  box-shadow: 4px 4px 0px var(--nx-pink);
+}
+.nx-btn-danger:hover:not(:disabled) {
+  background: rgba(255, 45, 111, 0.08);
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--nx-pink);
+}
+.nx-btn-sm { padding: 6px 14px; font-size: 0.7rem; }
+
+/* ── Inputs & Selects ── */
+.nx-input {
+  width: 100%;
+  height: 42px;
+  background: var(--nx-surface-2);
+  border: 1.5px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-family: var(--font-sans, "Space Grotesk", sans-serif);
+  color: var(--nx-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  box-sizing: border-box;
+}
+.nx-input::placeholder { color: var(--nx-muted); opacity: 0.7; }
+.nx-input:focus {
+  border-color: var(--nx-lime);
+  box-shadow: 0 0 0 2px var(--nx-lime-border);
+}
+
+.nx-select {
+  width: 100%;
+  height: 42px;
+  background: var(--nx-surface-2);
+  border: 1.5px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+  padding: 10px 36px 10px 14px;
+  font-size: 0.82rem;
+  font-family: var(--font-sans, "Space Grotesk", sans-serif);
+  color: var(--nx-text);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888580' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  box-sizing: border-box;
+}
+.nx-select:focus {
+  border-color: var(--nx-lime);
+  box-shadow: 0 0 0 2px var(--nx-lime-border);
+}
+.nx-select option {
+  background: #1A1918;
+  color: #F0EDE8;
+  padding: 8px 12px;
+}
+
+/* ── Tables with Singularity Spacing ── */
+.nx-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius);
+  background: var(--nx-surface);
+}
+.nx-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.82rem;
+  font-family: var(--font-sans, "Space Grotesk", sans-serif);
+  text-align: left;
+}
+.nx-table th {
+  background: var(--nx-surface-2);
+  color: var(--nx-muted);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--nx-border);
+  white-space: nowrap;
+}
+.nx-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(46, 44, 43, 0.5);
+  vertical-align: middle;
+  color: var(--nx-text);
+}
+.nx-table tbody tr {
+  transition: background 0.15s ease;
+}
+.nx-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.nx-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Compact In-Table Buttons (no overlapping shadows) ── */
+.nx-table-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  border: 1px solid var(--nx-border);
+  background: var(--nx-surface-2);
+  color: var(--nx-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.nx-table-btn:hover {
+  border-color: var(--nx-lime);
+  color: var(--nx-lime);
+  background: var(--nx-lime-dim);
+}
+.nx-table-btn-primary {
+  border-color: var(--nx-lime);
+  background: var(--nx-lime);
+  color: #111010;
+}
+.nx-table-btn-primary:hover {
+  background: #d4f74a;
+  color: #111010;
+}
+.nx-table-btn-danger {
+  border-color: rgba(255, 45, 111, 0.35);
+  background: rgba(255, 45, 111, 0.08);
+  color: var(--nx-pink);
+}
+.nx-table-btn-danger:hover {
+  border-color: var(--nx-pink);
+  background: rgba(255, 45, 111, 0.18);
+  color: var(--nx-pink);
+}
+
+/* ── Singularity Signature Polygon Button ── */
+.nx-clip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--nx-lime);
+  background: rgba(200, 241, 53, 0.04);
+  border: 1px solid rgba(200, 241, 53, 0.45);
+  padding: 8px 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  clip-path: polygon(
+    8px 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%,
+    0 8px
+  );
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+.nx-clip-btn:hover {
+  border-color: var(--nx-lime);
+  background: rgba(200, 241, 53, 0.12);
+  box-shadow: 0 0 20px rgba(200, 241, 53, 0.25);
+}
+
+/* ── Labels ── */
+.nx-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--nx-muted);
+  margin-bottom: 6px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+/* ── Badges ── */
+.nx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--nx-lime-border);
+  background: var(--nx-lime-dim);
+  color: var(--nx-lime);
+  white-space: nowrap;
+}
+.nx-badge-red { border-color: rgba(255,45,111,0.3); background: rgba(255,45,111,0.08); color: var(--nx-pink); }
+.nx-badge-muted { border-color: var(--nx-border); background: var(--nx-surface-2); color: var(--nx-muted); }
+.nx-badge-gray { border-color: var(--nx-border); background: var(--nx-surface-2); color: var(--nx-muted); }
+.nx-badge-amber { border-color: rgba(255,184,48,0.3); background: rgba(255,184,48,0.08); color: var(--nx-amber); }
+.nx-badge-purple { border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); color: var(--nx-purple); }
+.nx-badge-teal { border-color: rgba(45,212,191,0.3); background: rgba(45,212,191,0.08); color: #2dd4bf; }
+.nx-badge-lime { border-color: var(--nx-lime-border); background: var(--nx-lime-dim); color: var(--nx-lime); }
+.nx-badge-amber { border-color: rgba(255,184,48,0.3); background: rgba(255,184,48,0.08); color: var(--nx-amber); }
+.nx-badge-purple { border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); color: var(--nx-purple); }
+.nx-badge-teal { border-color: rgba(45,212,191,0.3); background: rgba(45,212,191,0.08); color: #2dd4bf; }
+
+/* ── Progress Bar ── */
+.nx-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--nx-surface-2);
+  border: 1px solid var(--nx-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.nx-progress-bar {
+  height: 100%;
+  background: var(--nx-lime);
+  box-shadow: 0 0 8px var(--nx-lime);
+  transition: width 1s ease;
+}
+
+/* ── Section helpers ── */
+.nx-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--nx-lime);
+  font-family: "JetBrains Mono", "Courier New", monospace;
+}
+.nx-section-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: var(--nx-text);
+  margin-top: 4px;
+}
+.nx-divider { width: 100%; height: 1px; background: var(--nx-border); }
+
+/* ── Status dot ── */
+.nx-dot-live {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--nx-lime);
+  animation: nx-pulse 1.5s ease-in-out infinite;
+}
+.nx-dot-idle {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--nx-muted);
+}
+@keyframes nx-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* ── html5-qrcode library overrides ── */
+#reader {
+  border: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+#reader video {
+  position: absolute !important;
+  top: 0 !important; left: 0 !important;
+  width: 100% !important; height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+}
+#reader #qr-shaded-region { display: none !important; }
+#reader > span, #reader > div > span, #reader img[alt="Info icon"] { display: none !important; }
+
+/* ── Animations ── */
+@keyframes scan-line {
+  0%, 100% { top: 10%; }
+  50% { top: 90%; }
+}
+.animate-scan-line { animation: scan-line 2s ease-in-out infinite; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+@keyframes scale-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-scale-in { animation: scale-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(1deg); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(12px) rotate(-1deg); }
+}
+.animate-float-delayed { animation: float-delayed 7s ease-in-out infinite; }
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-16px) rotate(1.5deg); }
+}
+.animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 40s linear infinite; }
+.animate-marquee:hover { animation-play-state: paused; }
+
+
 /* ── Basic Resets for Nexus (since global Tailwind preflight is off) ── */
 button, input, select, textarea {
   font-family: inherit;

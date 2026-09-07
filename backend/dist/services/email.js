@@ -28,40 +28,74 @@ export async function sendEmailPass(email, name, token) {
     const subject = `Singularity '26 Access Pass - ${name}`;
     const textBody = `Hi ${name},\n\nYour on-site check-in was successful!\n\nHere is your secure cryptographic QR access token:\n\n${token}\n\nPresent this code at food counters to claim items.\n\nEnjoy the event!`;
     const htmlBody = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E5E7EB; border-radius: 8px; color: #1F2937;">
-      <h2 style="color: #4F46E5; margin-bottom: 16px; text-align: center;">Event Access Pass</h2>
-      <p>Hi <strong>${name}</strong>,</p>
-      <p>Your check-in has been recorded successfully. Present the QR code below at the food counters to claim your items.</p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Event Access Pass</title>
+    </head>
+    <body style="margin: 0; padding: 0;">
       
-      <div style="text-align: center; margin: 28px 0;">
-        <div style="border: 4px solid #FACC15; border-radius: 16px; background: #FFFFFF; display: inline-block; padding: 16px 20px 20px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center;">
-          <div style="font-family: sans-serif; font-size: 14px; font-weight: 800; color: #1F2937; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; border-bottom: 2px solid #FACC15; padding-bottom: 6px;">
-            Singularity '26
+      <!-- Outer Wrapper -->
+      <div style="padding: 40px 20px;">
+        
+        <!-- Glassmorphism Card -->
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 30px; background-color: rgba(10, 10, 10, 0.92); border: 1px solid rgba(200, 241, 53, 0.2); border-radius: 24px; color: #F0EDE8; box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(200,241,53,0.1);">
+          
+          <!-- Centered Logo / Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+             <img src="cid:logo" alt="Singularity" style="width: 50px; height: 50px; margin-bottom: 12px; display: inline-block;" />
+             <div style="color: #c8f135; font-weight: 900; font-size: 26px; letter-spacing: 0.1em; text-transform: uppercase;">
+                SINGULARITY
+             </div>
+             <div style="color: #FFFFFF; font-size: 11px; font-family: monospace; letter-spacing: 0.2em; margin-top: 6px; opacity: 0.7;">
+                // ACCESS PASS VERIFIED //
+             </div>
           </div>
-          <img src="cid:qrcode" alt="Event Access QR Pass" style="width: 220px; height: 220px; display: block;" />
+          
+          <p style="font-size: 16px; line-height: 1.6;">Hi <strong style="color: #FFFFFF;">${name}</strong>,</p>
+          <p style="font-size: 15px; color: #A09E9A; line-height: 1.6;">Your check-in is complete. Present the cryptographic QR code below at the fulfillment counters to claim your items.</p>
+          
+          <!-- QR Code Container with Centered Logo trick -->
+          <div style="text-align: center; margin: 40px 0;">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="center" style="margin: 0 auto;">
+              <tr>
+                <td style="border: 2px solid #c8f135; border-radius: 20px; background: #FFFFFF; padding: 16px; box-shadow: 0 0 30px rgba(200,241,53,0.2);">
+                  <!-- The QR code is the background of this cell, and the logo sits in the exact middle -->
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="220" height="220" background="cid:qrcode" style="background-image: url('cid:qrcode'); background-size: cover; width: 220px; height: 220px;">
+                    <tr>
+                      <td align="center" valign="middle">
+                        <img src="cid:logo" alt="Logo" width="48" height="48" style="display: block; border-radius: 50%; background: #FFFFFF; padding: 4px; border: 2px solid #000000;" />
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </div>
+     
+          <div style="background-color: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; font-family: monospace; word-break: break-all; margin: 24px 0; border: 1px solid rgba(255,255,255,0.1); font-size: 13px; color: #c8f135; text-align: center;">
+            <span style="color: #888580; font-size: 11px; display: block; margin-bottom: 6px;">SECURE TOKEN ID</span>
+            ${token.substring(0, 24)}...
+          </div>
+          
+          <div style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; font-size: 10px; color: #555555; text-align: center; line-height: 1.6; font-family: monospace;">
+            <p style="margin: 0;">AUTOMATED SYSTEM MESSAGE // DO NOT REPLY</p>
+            <p style="margin: 4px 0 0 0; color: rgba(200,241,53,0.4);">
+              REF: ${token.substring(token.length - 8).toUpperCase()} | ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' })}
+            </p>
+          </div>
         </div>
       </div>
- 
-      <div style="background-color: #F9FAFB; padding: 12px; border-radius: 6px; font-family: monospace; word-break: break-all; margin: 16px 0; border: 1px dashed #E5E7EB; font-size: 11px; color: #6B7280; text-align: center;">
-        <strong>Token ID:</strong> ${token.substring(0, 16)}...
-      </div>
-      
-      <p style="font-size: 13px; color: #4B5563; line-height: 1.5;">This entry code is cryptographic, unique, and digitally signed. It will be verified offline at the gates.</p>
-      
-      <div style="margin-top: 32px; border-top: 1px solid #E5E7EB; padding-top: 16px; font-size: 11px; color: #9CA3AF; text-align: center; line-height: 1.6;">
-        <p style="margin: 0;">This is an automated system message. Please do not reply to this email.</p>
-        <p style="margin: 4px 0 0 0; font-family: monospace; font-size: 10px; color: #9CA3AF;">
-          Ref: ${token.substring(token.length - 12).toUpperCase()} | Generated: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' })}
-        </p>
-      </div>
-    </div>
+    </body>
+    </html>
   `;
     if (transporter) {
         try {
             const attachments = [];
             // Fetch and build binary inline attachment for the QR code image
             try {
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(token)}`;
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(token)}`;
                 const qrRes = await fetch(qrUrl);
                 if (qrRes.ok) {
                     const qrBuffer = Buffer.from(await qrRes.arrayBuffer());
@@ -70,6 +104,22 @@ export async function sendEmailPass(email, name, token) {
                         content: qrBuffer,
                         cid: 'qrcode'
                     });
+                }
+                // Attach the logo for the center of the QR and the header
+                try {
+                    const fs = await import('fs');
+                    const path = await import('path');
+                    const logoPath = path.resolve(process.cwd(), '../frontend/public/logo.webp');
+                    if (fs.existsSync(logoPath)) {
+                        attachments.push({
+                            filename: 'logo.webp',
+                            content: fs.readFileSync(logoPath),
+                            cid: 'logo'
+                        });
+                    }
+                }
+                catch (e) {
+                    console.error("Could not load local logo:", e);
                 }
             }
             catch (qrErr) {

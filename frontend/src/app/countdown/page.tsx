@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import CountDown from "@/components/CountDown/CountDown";
+import CountDown, { TOTAL_COUNTDOWN_DURATION_MS } from "@/components/CountDown/CountDown";
 import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import { getApiBaseUrl, fetchCountdownState, CountdownState } from "@/lib/api";
 
@@ -24,7 +24,13 @@ export default function PublicCountdownPage() {
     async function loadState() {
       try {
         const data = await fetchCountdownState();
-        if (isMounted) setState(data);
+        if (isMounted) {
+          setState(data);
+          const serverOffset = data.serverTime ? (new Date(data.serverTime).getTime() - Date.now()) : 0;
+          if (data.isStarted && data.startedAt && ((Date.now() + serverOffset) - new Date(data.startedAt).getTime()) >= TOTAL_COUNTDOWN_DURATION_MS) {
+            handleCountdownComplete();
+          }
+        }
       } catch (err) {
         console.error("Error fetching countdown state:", err);
       }
@@ -39,12 +45,19 @@ export default function PublicCountdownPage() {
       try {
         const data = JSON.parse(event.data);
         if (isMounted && data) {
-          setState({
+          const fresh = {
             isDisplayed: Boolean(data.isDisplayed),
             isStarted: Boolean(data.isStarted),
             startedAt: data.startedAt || null,
             updatedAt: data.updatedAt || new Date().toISOString(),
-          });
+            serverTime: data.serverTime,
+          };
+          setState(fresh);
+
+          const serverOffset = data.serverTime ? (new Date(data.serverTime).getTime() - Date.now()) : 0;
+          if (fresh.isStarted && fresh.startedAt && ((Date.now() + serverOffset) - new Date(fresh.startedAt).getTime()) >= TOTAL_COUNTDOWN_DURATION_MS) {
+            handleCountdownComplete();
+          }
         }
       } catch (err) {
         console.error("SSE parse error in /countdown:", err);
@@ -55,7 +68,13 @@ export default function PublicCountdownPage() {
     const interval = setInterval(async () => {
       try {
         const fresh = await fetchCountdownState();
-        if (isMounted) setState(fresh);
+        if (isMounted) {
+          setState(fresh);
+          const serverOffset = fresh.serverTime ? (new Date(fresh.serverTime).getTime() - Date.now()) : 0;
+          if (fresh.isStarted && fresh.startedAt && ((Date.now() + serverOffset) - new Date(fresh.startedAt).getTime()) >= TOTAL_COUNTDOWN_DURATION_MS) {
+            handleCountdownComplete();
+          }
+        }
       } catch {
         // Ignore network drops
       }
@@ -151,6 +170,8 @@ export default function PublicCountdownPage() {
     <div className="fixed inset-0 z-[99999] bg-black">
       <CountDown
         isStarted={state.isStarted}
+        startedAt={state.startedAt}
+        serverTime={state.serverTime}
         onComplete={handleCountdownComplete}
       />
     </div>

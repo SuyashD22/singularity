@@ -59,72 +59,122 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050A18] px-4 font-sans">
-      {/* Decorative ambient neon yellow glowing blobs */}
-      <div className="absolute top-[-10%] left-[-10%] h-[300px] w-[300px] rounded-full bg-yellow-400/10 blur-[120px] md:h-[500px] md:w-[500px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] h-[300px] w-[300px] rounded-full bg-yellow-400/5 blur-[120px] md:h-[500px] md:w-[500px]" />
+    <div
+      className="relative flex min-h-screen items-center justify-center px-4"
+      style={{
+        backgroundColor: "#111010",
+        fontFamily: '"Space Grotesk", sans-serif',
+      }}
+    >
+      {/* Topo background pattern overlay */}
+      <div className="nx-topo" />
 
-      {/* Cyberpunk grid backdrop overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.03]"
+      {/* Subtle radial ambient glow */}
+      <div
         style={{
-          backgroundImage: `radial-gradient(circle, #facc15 1px, transparent 1px)`,
-          backgroundSize: "24px 24px"
+          position: "absolute",
+          top: "20%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "600px",
+          height: "400px",
+          background: "radial-gradient(ellipse at center, rgba(200, 241, 53, 0.05) 0%, transparent 70%)",
+          pointerEvents: "none",
+          zIndex: 1,
         }}
       />
 
-      <div className="w-full max-w-md z-10">
+      <div className="relative z-10 w-full max-w-md">
         {/* Brand Header */}
         <div className="mb-8 text-center">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.1)] mb-4">
-            <svg 
-              className="h-6 w-6" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor" 
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+          <div className="flex justify-center mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.webp"
+              alt="Singularity"
+              style={{ width: "64px", height: "64px", objectFit: "contain", borderRadius: "10px" }}
+              draggable={false}
+            />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            Singularity<span className="text-yellow-400 drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]"> &apos;26</span>
+          <h1 className="text-3xl font-black tracking-tight text-[#F0EDE8] uppercase sm:text-4xl">
+            Singularity
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Event food claim control terminal
-          </p>
+          
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <span
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: "0.7rem",
+                letterSpacing: "0.15em",
+                textTransform: "uppercase",
+                color: "#888580",
+              }}
+            >
+              ADMIN CONTROL ACCESS
+            </span>
+          </div>
         </div>
 
-        {/* Login Glass Card */}
-        <div className="overflow-hidden rounded-2xl bg-slate-900/50 p-8 backdrop-blur-xl border border-slate-800/80 shadow-2xl transition-all duration-300 hover:border-yellow-400/30">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Administrator Login</h2>
-            <p className="text-xs text-slate-400 mt-1">Authorized personnel access only.</p>
+
+        {/* Login Card */}
+        <div
+          className="nx-card"
+          style={{
+            padding: "32px",
+            boxShadow: isSuccess ? "4px 4px 0px #c8f135" : "4px 4px 0px #c8f135",
+          }}
+        >
+          <div className="mb-6 pb-4" style={{ borderBottom: "1px solid #2E2C2B" }}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold uppercase tracking-tight text-[#F0EDE8]">
+                Console Authentication
+              </h2>
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.65rem",
+                  color: "#c8f135",
+                  background: "rgba(200,241,53,0.1)",
+                  padding: "2px 8px",
+                  borderRadius: "2px",
+                  border: "1px solid rgba(200,241,53,0.3)",
+                }}
+              >
+                SECURE
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-[#888580]">
+              Authorized administrative personnel only.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Username Input */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                Username
+              <label
+                className="block mb-2 text-xs font-bold uppercase tracking-wider text-[#888580]"
+                style={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                Operator ID / Username
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
-                  disabled={isLoading || isSuccess}
-                  className="w-full rounded-lg bg-black/40 px-4 py-3 text-sm text-white placeholder-slate-600 border border-slate-800 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 focus:outline-none transition-all duration-200 disabled:opacity-50"
-                />
-              </div>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
+                disabled={isLoading || isSuccess}
+                className="nx-input"
+              />
             </div>
 
             {/* Password Input */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                Password
+              <label
+                className="block mb-2 text-xs font-bold uppercase tracking-wider text-[#888580]"
+                style={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                Access Key / Password
               </label>
               <input
                 type="password"
@@ -133,13 +183,22 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 disabled={isLoading || isSuccess}
-                className="w-full rounded-lg bg-black/40 px-4 py-3 text-sm text-white placeholder-slate-600 border border-slate-800 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 focus:outline-none transition-all duration-200 disabled:opacity-50"
+                className="nx-input"
               />
             </div>
 
             {/* Error Notification */}
             {error && (
-              <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 animate-pulse">
+              <div
+                className="flex items-center gap-2 p-3 text-xs"
+                style={{
+                  background: "rgba(255, 45, 111, 0.1)",
+                  border: "1px solid rgba(255, 45, 111, 0.3)",
+                  borderRadius: "4px",
+                  color: "#ff2d6f",
+                  fontFamily: '"JetBrains Mono", monospace',
+                }}
+              >
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -151,34 +210,47 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading || isSuccess}
-              className={`relative w-full overflow-hidden rounded-lg py-3 text-sm font-bold tracking-wider uppercase transition-all duration-200 active:scale-[0.98] ${
-                isSuccess
-                  ? "bg-emerald-500 text-white"
-                  : "bg-yellow-400 text-black hover:bg-yellow-300 hover:shadow-[0_0_20px_rgba(234,179,8,0.2)] disabled:bg-slate-800 disabled:text-slate-600 disabled:shadow-none"
-              }`}
+              className={`nx-btn w-full ${isSuccess ? "" : "nx-btn-primary"}`}
+              style={{
+                padding: "14px",
+                fontSize: "0.8rem",
+                ...(isSuccess
+                  ? {
+                      backgroundColor: "#c8f135",
+                      borderColor: "#c8f135",
+                      color: "#111010",
+                      boxShadow: "4px 4px 0px #fff",
+                    }
+                  : {}),
+              }}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
-                  <span>Verifying...</span>
+                  <div
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-[#111010] border-t-transparent"
+                  />
+                  <span>Verifying Credentials...</span>
                 </div>
               ) : isSuccess ? (
-                <div className="flex items-center justify-center gap-1">
+                <div className="flex items-center justify-center gap-2">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Access Granted</span>
+                  <span>Access Granted — Redirecting</span>
                 </div>
               ) : (
-                "Initiate Connection"
+                "Authorize Connection"
               )}
             </button>
           </form>
         </div>
 
         {/* Footer info */}
-        <p className="mt-8 text-center text-xs text-slate-500">
-          Singularity API Console v1.1.0 &copy; 2026.
+        <p
+          className="mt-8 text-center text-xs text-[#888580]"
+          style={{ fontFamily: '"JetBrains Mono", monospace' }}
+        >
+          SINGULARITY // CORE v1.2.0 &copy; 2026
         </p>
       </div>
     </div>

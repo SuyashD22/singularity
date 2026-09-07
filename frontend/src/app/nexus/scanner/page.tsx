@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getApiBaseUrl } from "@/lib/api";
 import { Html5Qrcode } from "html5-qrcode";
+import NexusSelect from "../components/NexusSelect";
 
 interface CounterSession {
   id: string;
   name: string;
-  isOpen: boolean;
+  is_open: boolean;
 }
 
 interface ScanLog {
@@ -31,7 +32,6 @@ interface CameraDevice {
 
 export default function ScannerPage() {
   const router = useRouter();
-  // Admin state not strictly needed for this page render
   
   // State variables
   const [counters, setCounters] = useState<CounterSession[]>([]);
@@ -64,21 +64,20 @@ export default function ScannerPage() {
   const isScanningActive = useRef(false);
   const scanInProgress = useRef(false);
   const lastScannedToken = useRef<string>("");
-  
 
-  // Haptic Vibration feedback for mobile scanning (No audio, vibration only)
+  // Haptic Vibration feedback for mobile scanning
   const vibrate = (type: "success" | "warning" | "error") => {
     if (typeof window !== "undefined" && "vibrate" in navigator) {
       try {
         if (type === "success") {
-          navigator.vibrate(150); // Single crisp haptic pulse for approved scan
+          navigator.vibrate(150);
         } else if (type === "warning") {
-          navigator.vibrate([100, 60, 100]); // Double buzz for already claimed
+          navigator.vibrate([100, 60, 100]);
         } else {
-          navigator.vibrate([200, 80, 200]); // Heavy double buzz for error
+          navigator.vibrate([200, 80, 200]);
         }
       } catch {
-        // Ignore if vibration isn't supported/allowed on client
+        // Ignore
       }
     }
   };
@@ -92,43 +91,38 @@ export default function ScannerPage() {
       router.push("/nexus/login");
       return;
     }
-    // Just validating token exists
   }, [router]);
 
-  // Real-time counter updates via SSE — scanner unlocks/locks instantly when admin toggles a counter
+  // Real-time counter updates via SSE
   useEffect(() => {
     const API_BASE = getApiBaseUrl();
-    const eventSource = new EventSource(`${API_BASE}/api/counters/events`);
+    const token = localStorage.getItem("admin_token");
+    if (!token) return;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const rawData = JSON.parse(event.data);
-        // Map snake_case API response to camelCase interface
-        const data: CounterSession[] = rawData.map((c: Record<string, unknown>) => ({
-          id: c.id,
-          name: c.name,
-          isOpen: c.is_open,
-        }));
-
+    fetch(`${API_BASE}/api/counters`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res) => res.json())
+      .then((data: CounterSession[]) => {
         setCounters(data);
         setIsLoadingCounters(false);
+        const firstOpen = data.find((c) => c.is_open);
+        if (firstOpen) {
+          setSelectedCounter(firstOpen.id);
+        } else if (data.length > 0) {
+          setSelectedCounter(data[0].id);
+        }
+      })
+      .catch(() => setIsLoadingCounters(false));
 
-        // Auto-select an open counter
-        setSelectedCounter(prev => {
-          const currentCounter = data.find(c => c.id === prev);
-          if (currentCounter && currentCounter.isOpen) return prev; // keep current if still open
-          const openCounter = data.find(c => c.isOpen);
-          if (openCounter) return openCounter.id;
-          if (!prev && data.length > 0) return data[0].id;
-          return prev;
-        });
+    const eventSource = new EventSource(`${API_BASE}/api/counters/events`);
+    eventSource.onmessage = (event) => {
+      try {
+        const updatedCounters: CounterSession[] = JSON.parse(event.data);
+        setCounters(updatedCounters);
       } catch (err) {
-        console.error("SSE parse error:", err);
+        console.error("SSE Counter Event Error:", err);
       }
-    };
-
-    eventSource.onerror = () => {
-      console.warn("SSE connection lost, will auto-reconnect...");
     };
 
     return () => {
@@ -136,87 +130,101 @@ export default function ScannerPage() {
     };
   }, []);
 
-  // Setup Cameras — automatically prefer the back/rear camera for scanning QR codes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      Html5Qrcode.getCameras()
-        .then((devices) => {
-          if (devices && devices.length > 0) {
-            setCameras(devices);
+  // Update scanner state when selectedCounter changes
+  const isSelectedCounterOpen = counters.find((c) => c.id === selectedCounter)?.is_open ?? false;
 
-            // Search for back / rear / environment camera in device labels
-            const rearCamera = devices.find((d) =>
-              /back|rear|environment|main|primary|facing back/i.test(d.label)
-            );
-
-            // On mobile, back camera is usually the last device if labels aren't available yet
-            const selected = rearCamera || (devices.length > 1 ? devices[devices.length - 1] : devices[0]);
-            setActiveCameraId(selected.id);
-          } else {
-            setIsCameraSupported(false);
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to query cameras:", err);
-          setIsCameraSupported(false);
-        });
-    }
-  }, []);
-
-  const isInitializing = useRef(false);
-
-  // Compute whether selected counter is open
-  const selectedCounterObj = counters.find((c) => c.id === selectedCounter);
-  const isSelectedCounterOpen = selectedCounterObj ? selectedCounterObj.isOpen : false;
-
-  // Control scanner lifecycle
   useEffect(() => {
     if (!selectedCounter) return;
 
     if (!isSelectedCounterOpen) {
-      stopScanner();
       setScanStatus("closed");
-      return;
+      stopScanner();
+    } else {
+      if (!isScanningActive.current) {
+        setScanStatus("scanning");
+        startScanner();
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCounter, isSelectedCounterOpen]);
 
-    startScanner();
+  // Enumerate cameras on mount
+  useEffect(() => {
+    Html5Qrcode.getCameras()
+      .then((devices) => {
+        if (devices && devices.length > 0) {
+          setCameras(devices);
+          const backCamera = devices.find((d) =>
+            d.label.toLowerCase().includes("back") ||
+            d.label.toLowerCase().includes("environment") ||
+            d.label.toLowerCase().includes("rear")
+          );
+          setActiveCameraId(backCamera ? backCamera.id : devices[0].id);
+        } else {
+          setIsCameraSupported(false);
+        }
+      })
+      .catch(() => {
+        setIsCameraSupported(false);
+      });
+  }, []);
 
+  // Visibility changes (Pause camera when app goes to background)
+  useEffect(() => {
+    const handlePause = () => stopScanner();
+    const handleResume = () => {
+      if (!document.hidden && isSelectedCounterOpen && !scanResult) {
+        startScanner();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handlePause();
+      } else {
+        handleResume();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePause);
+    window.addEventListener("blur", handlePause);
+    window.addEventListener("focus", handleResume);
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePause);
+      window.removeEventListener("blur", handlePause);
+      window.removeEventListener("focus", handleResume);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSelectedCounterOpen, scanResult, activeCameraId]);
+
+  // Lifecycle cleanup (unmount)
+  useEffect(() => {
     return () => {
       stopScanner();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCameraId, selectedCounter, isSelectedCounterOpen]);
+  }, []);
 
   const startScanner = async () => {
-    if (isScanningActive.current || isInitializing.current) {
-      return; // Camera is already running or initializing
-    }
-    isInitializing.current = true;
+    if (isScanningActive.current) return;
 
     try {
-      if (scannerRef.current) {
-        await stopScanner();
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode("reader");
       }
 
-      const cameraConfig = activeCameraId ? activeCameraId : { facingMode: "environment" };
+      const cameraConfig = activeCameraId
+        ? { deviceId: { exact: activeCameraId } }
+        : { facingMode: "environment" };
 
-      const readerEl = document.getElementById("reader");
-      if (!readerEl) {
-        isInitializing.current = false;
-        return;
-      }
-
-      const html5Qrcode = new Html5Qrcode("reader");
-      scannerRef.current = html5Qrcode;
-
-      await html5Qrcode.start(
+      await scannerRef.current.start(
         cameraConfig,
         {
           fps: 15,
-          qrbox: (width, height) => {
-            const size = Math.min(width, height) * 0.7;
-            return { width: size, height: size };
-          }
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
         },
         onScanSuccess,
         onScanError
@@ -224,29 +232,16 @@ export default function ScannerPage() {
 
       isScanningActive.current = true;
       setScanStatus("scanning");
-    } catch (err: unknown) {
-      const isBusyErr = (err && typeof err === "object" && "name" in err && err.name === "NotReadableError") || String(err).includes("NotReadableError");
-      
-      // Auto-retry silently if camera hardware was momentarily busy
-      if (isBusyErr) {
-        setTimeout(() => {
-          isInitializing.current = false;
-          if (!isScanningActive.current) {
-            startScanner();
-          }
-        }, 500);
-        return;
-      }
-
-      console.error("Scanner start error:", err instanceof Error ? err.message : err);
-      setScanStatus("error");
-    } finally {
-      isInitializing.current = false;
+    } catch {
+      setIsCameraSupported(false);
     }
   };
 
   const stopScanner = async () => {
-    if (!scannerRef.current) return;
+    if (!scannerRef.current) {
+      isScanningActive.current = false;
+      return;
+    }
 
     const scanner = scannerRef.current;
     scannerRef.current = null;
@@ -257,6 +252,26 @@ export default function ScannerPage() {
       if (state === 2 || state === 3) {
         await scanner.stop();
       }
+    } catch {
+      // Ignored
+    }
+    
+    try {
+      scanner.clear(); // Nuke the DOM elements created by html5-qrcode unconditionally
+    } catch {
+      // Ignored
+    }
+
+    // Bulletproof fallback: forcefully kill ANY video tracks on the page globally
+    // This runs after graceful shutdown to catch any ghost tracks without triggering onabort()
+    try {
+      document.querySelectorAll("video").forEach((videoEl) => {
+        if (videoEl.srcObject) {
+          const stream = videoEl.srcObject as MediaStream;
+          stream.getTracks().forEach((track) => track.stop());
+          videoEl.srcObject = null;
+        }
+      });
     } catch {
       // Ignored
     }
@@ -278,7 +293,6 @@ export default function ScannerPage() {
   };
 
   const onScanSuccess = async (decodedText: string) => {
-    // If a scan result is currently showing or an API call is in progress, block new scans
     if (scanInProgress.current || scanResult) return;
     
     scanInProgress.current = true;
@@ -297,7 +311,7 @@ export default function ScannerPage() {
         })
       });
 
-      const data = await res.json();
+      const data = await responseJsonSafe(res);
 
       if (res.status === 401) {
         localStorage.removeItem("admin_token");
@@ -306,7 +320,6 @@ export default function ScannerPage() {
         return;
       }
       if (!res.ok) {
-        // Validation / Auth errors
         vibrate("error");
         triggerFlash("error");
         setScanStatus("error");
@@ -348,24 +361,31 @@ export default function ScannerPage() {
             college: data.college,
             role: data.role,
             message: "Double claim blocked.",
-            time: new Date(data.claimedAt).toLocaleTimeString()
+            time: timeStr
           });
-          addScanLog(data.participantName, "ALREADY_CLAIMED", "Already claimed", {
+          addScanLog(data.participantName, "ALREADY_CLAIMED", "Already verified", {
             email: data.email,
             teamName: data.teamName,
             teamNumber: data.teamNumber,
             college: data.college,
             role: data.role
           });
-        } else if (data.status === "CLOSED") {
+        } else if (data.status === "COUNTER_CLOSED") {
           vibrate("error");
           triggerFlash("error");
           setScanStatus("closed");
           setScanResult({
-            message: "Counter is closed."
+            message: "Counter session is locked."
           });
-          addScanLog("Kiosk Access", "CLOSED", "Counter closed");
-          scanInProgress.current = false;
+          addScanLog(data.participantName || "Unknown", "CLOSED", "Counter locked");
+        } else {
+          vibrate("error");
+          triggerFlash("error");
+          setScanStatus("error");
+          setScanResult({
+            message: data.message || "Invalid ticket payload."
+          });
+          addScanLog(data.participantName || "Error", "ERROR", data.message);
         }
       }
     } catch {
@@ -376,12 +396,18 @@ export default function ScannerPage() {
         message: "Failed to connect to backend server."
       });
     }
-    // scanInProgress.current remains true while scanResult is displayed!
-    // The volunteer MUST click "Next Scan ➔" to clear the message and unlock scanning!
+  };
+
+  const responseJsonSafe = async (res: Response) => {
+    try {
+      return await res.json();
+    } catch {
+      return {};
+    }
   };
 
   const onScanError = () => {
-    // Silent errors are normal since camera streams constantly fail to parse non-QR frames
+    // Expected during continuous video scanning
   };
 
   const addScanLog = (
@@ -411,33 +437,57 @@ export default function ScannerPage() {
     setRecentScans((prev) => [newLog, ...prev.slice(0, 9)]);
   };
 
-
-
   return (
-    <div className="relative overflow-hidden flex-1 w-full bg-[#050A18] text-white font-sans">
-      {/* Background Glow effects */}
-      <div className="absolute top-[-10%] right-[-10%] h-[300px] w-[300px] rounded-full bg-yellow-400/5 blur-[120px]" />
-      <div className="absolute bottom-[-10%] left-[-10%] h-[300px] w-[300px] rounded-full bg-yellow-400/5 blur-[120px]" />
-
-
+    <div
+      className="relative overflow-hidden flex-1 w-full text-[#F0EDE8]"
+      style={{ backgroundColor: "#111010", fontFamily: '"Space Grotesk", sans-serif' }}
+    >
+      <div className="nx-topo" />
 
       {/* Main Scanner Container */}
-      <main className="mx-auto max-w-7xl p-6 sm:p-8 space-y-8">
+      <main className="relative z-10 mx-auto max-w-7xl p-4 sm:p-8 space-y-8">
         
         {/* Header Intro */}
-        <div className="border-b border-slate-900 pb-4">
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Access Pass Scanner</h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1.5">
-            Use your camera to scan participant QR passes, verify ticket signatures, and checkout meal tokens.
+        <div className="pb-4" style={{ borderBottom: "1px solid #2E2C2B" }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: "0.65rem",
+                letterSpacing: "0.15em",
+                color: "#c8f135",
+                background: "rgba(200,241,53,0.1)",
+                padding: "2px 8px",
+                borderRadius: "2px",
+                border: "1px solid rgba(200,241,53,0.3)",
+              }}
+            >
+              OPTICAL SENSOR
+            </span>
+            <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: "0.7rem", color: "#888580" }}>{`
+              // QR VERIFICATION
+            `}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#F0EDE8]">
+            Access Pass Scanner
+          </h1>
+          <p className="text-xs text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+            Optical camera scanner for QR pass validation and counter checkout fulfillment.
           </p>
         </div>
 
         {/* Global Error Alert */}
         {error && (
-          <div className="flex items-center gap-3 rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-xs sm:text-sm text-red-400 animate-fade-in">
-            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+          <div
+            className="p-4 text-xs font-bold"
+            style={{
+              background: "rgba(255, 45, 111, 0.1)",
+              border: "1px solid rgba(255, 45, 111, 0.3)",
+              borderRadius: "4px",
+              color: "#ff2d6f",
+              fontFamily: '"JetBrains Mono", monospace',
+            }}
+          >
             <span>{error}</span>
           </div>
         )}
@@ -448,23 +498,22 @@ export default function ScannerPage() {
           <div className="lg:col-span-7 space-y-6">
             
             {/* Viewfinder Container */}
-            <div className="relative overflow-hidden rounded-2xl border border-slate-900 bg-slate-950/40 p-4 sm:p-6 backdrop-blur-md shadow-xl text-center">
+            <div className="nx-card text-center p-4 sm:p-6">
               
               <div className="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-left">
-                  <h3 className="text-sm font-bold text-slate-200">Viewfinder Screen</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Point camera at QR access pass</p>
+                  <h3 className="text-sm font-black uppercase tracking-tight text-[#F0EDE8]">Optical Viewfinder</h3>
+                  <p className="text-xs text-[#888580]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>Align QR pass inside boundary</p>
                 </div>
 
-                {/* Camera Selector Dropdown (Hidden on mobile, always locks to rear camera on phones) */}
                 {cameras.length > 1 && (
                   <select
                     value={activeCameraId}
                     onChange={(e) => setActiveCameraId(e.target.value)}
-                    className="hidden sm:block rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none cursor-pointer w-full sm:w-auto"
+                    className="nx-select hidden sm:block w-auto py-1 text-xs"
                   >
                     {cameras.map((c, i) => (
-                      <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                      <option key={c.id} value={c.id} className="bg-[#1A1918] text-[#F0EDE8]">
                         {c.label || `Camera ${i + 1}`}
                       </option>
                     ))}
@@ -473,96 +522,160 @@ export default function ScannerPage() {
               </div>
 
               {/* Viewfinder Element Wrapper */}
-              <div className={`relative mx-auto aspect-square w-full max-w-sm rounded-xl overflow-hidden bg-black border transition-all duration-300 shadow-inner ${
-                scanFlash === "success"
-                  ? "border-emerald-500 ring-4 ring-emerald-500/30"
-                  : scanFlash === "warning"
-                  ? "border-yellow-400 ring-4 ring-yellow-400/30"
-                  : scanFlash === "error"
-                  ? "border-red-500 ring-4 ring-red-500/30"
-                  : "border-slate-900/60"
-              }`}>
-                
-                {/* HTML5 Qrcode Render Target — sized via CSS, not absolute, so the library can read dimensions */}
+              <div
+                className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden bg-black transition-all duration-300"
+                style={{
+                  borderRadius: "4px",
+                  border: scanFlash === "success"
+                    ? "2px solid #c8f135"
+                    : scanFlash === "warning"
+                    ? "2px solid #ffb830"
+                    : scanFlash === "error"
+                    ? "2px solid #ff2d6f"
+                    : "2px solid #2E2C2B",
+                  boxShadow: scanFlash === "success"
+                    ? "0 0 20px rgba(200, 241, 53, 0.4)"
+                    : scanFlash === "warning"
+                    ? "0 0 20px rgba(255, 184, 48, 0.4)"
+                    : scanFlash === "error"
+                    ? "0 0 20px rgba(255, 45, 111, 0.4)"
+                    : "none",
+                }}
+              >
+                {/* HTML5 Qrcode Render Target */}
                 <div id="reader" style={{ width: '100%', height: '100%' }} />
 
-                {/* Scanner Viewfinder Targets Overlay (Always active while scanning) */}
+                {/* Scanner Viewfinder Targets Overlay */}
                 {scanStatus !== "closed" && (
                   <div className="absolute inset-0 z-[5] pointer-events-none flex flex-col items-center justify-center">
                     
                     {/* Viewfinder Neon Box Frame */}
-                    <div className={`w-[65%] h-[65%] border-2 rounded-2xl relative transition-all duration-200 ${
-                      scanFlash === "success"
-                        ? "border-emerald-400 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
-                        : scanFlash === "warning"
-                        ? "border-yellow-400 bg-yellow-500/10 shadow-[0_0_20px_rgba(250,204,21,0.5)]"
-                        : scanFlash === "error"
-                        ? "border-red-500 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.5)]"
-                        : "border-yellow-400/40"
-                    }`}>
-                      
+                    <div
+                      className="w-[65%] h-[65%] relative transition-all duration-200"
+                      style={{
+                        borderRadius: "4px",
+                        border: scanFlash === "success"
+                          ? "2px solid #c8f135"
+                          : scanFlash === "warning"
+                          ? "2px solid #ffb830"
+                          : scanFlash === "error"
+                          ? "2px solid #ff2d6f"
+                          : "2px solid rgba(200, 241, 53, 0.3)",
+                      }}
+                    >
                       {/* Viewfinder Corners */}
-                      <div className="absolute -top-1.5 -left-1.5 w-6 h-6 border-t-4 border-l-4 border-yellow-400 rounded-tl-lg" />
-                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 border-t-4 border-r-4 border-yellow-400 rounded-tr-lg" />
-                      <div className="absolute -bottom-1.5 -left-1.5 w-6 h-6 border-b-4 border-l-4 border-yellow-400 rounded-bl-lg" />
-                      <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 border-b-4 border-r-4 border-yellow-400 rounded-br-lg" />
+                      <div className="absolute -top-1 -left-1 w-5 h-5 border-t-2 border-l-2 border-[#c8f135]" />
+                      <div className="absolute -top-1 -right-1 w-5 h-5 border-t-2 border-r-2 border-[#c8f135]" />
+                      <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-[#c8f135]" />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-[#c8f135]" />
 
-                      {/* Moving Neon Scan Line */}
-                      <div className="absolute left-0 right-0 h-0.5 bg-yellow-400/80 shadow-[0_0_10px_#facc15] animate-scan-line" />
+                      {/* Moving Scan Line */}
+                      <div
+                        className="absolute left-0 right-0 h-0.5 animate-scan-line"
+                        style={{
+                          backgroundColor: "#c8f135",
+                          boxShadow: "0 0 8px #c8f135",
+                        }}
+                      />
                     </div>
 
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-yellow-400 mt-6 bg-slate-950/80 border border-yellow-400/20 px-3 py-1 rounded-full animate-pulse">
-                      Continuous Scanner Active
+                    <span
+                      className="text-[10px] uppercase font-bold tracking-widest mt-6 px-3 py-1 rounded"
+                      style={{
+                        fontFamily: '"JetBrains Mono", monospace',
+                        color: "#c8f135",
+                        background: "rgba(17, 16, 16, 0.9)",
+                        border: "1px solid rgba(200, 241, 53, 0.3)",
+                      }}
+                    >
+                      Continuous Scan Active
                     </span>
                   </div>
                 )}
 
                 {/* Closed State Overlay */}
                 {scanStatus === "closed" && (
-                  <div className="absolute inset-0 z-10 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 border border-red-500/30 text-red-500 mb-4 animate-pulse">
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-sm" style={{ background: "rgba(17, 16, 16, 0.96)" }}>
+                    <div
+                      className="flex h-16 w-16 items-center justify-center rounded mb-4"
+                      style={{
+                        background: "rgba(255, 45, 111, 0.1)",
+                        border: "1px solid rgba(255, 45, 111, 0.3)",
+                        color: "#ff2d6f",
+                      }}
+                    >
                       <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-red-500 border border-red-500/20 bg-red-950 px-3 py-1 rounded-full mb-3">
-                      Scanner Locked
+                    <span
+                      className="text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded mb-3"
+                      style={{
+                        fontFamily: '"JetBrains Mono", monospace',
+                        color: "#ff2d6f",
+                        border: "1px solid rgba(255, 45, 111, 0.3)",
+                        background: "rgba(255, 45, 111, 0.1)",
+                      }}
+                    >
+                      Door Locked
                     </span>
-                    <h4 className="font-extrabold text-white text-base">Selected Counter is Closed</h4>
-                    <p className="text-xs text-slate-400 mt-2 max-w-xs">
-                      Scan checkouts are locked. Please select an active open counter, or activate one in the Console.
+                    <h4 className="font-black text-[#F0EDE8] text-base uppercase">Counter is Locked</h4>
+                    <p className="text-xs text-[#888580] mt-2 max-w-xs" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                      Fulfillment disabled. Select an active open counter or unlock the session in Console.
                     </p>
                   </div>
                 )}
 
-                {/* On-Screen Floating Scan Result Banner (Renders directly ON top of the camera video) */}
+                {/* On-Screen Floating Scan Result Banner */}
                 {scanResult && scanStatus !== "closed" && (
-                  <div className="absolute inset-x-3 bottom-3 z-10 animate-fade-in">
-                    <div className={`rounded-xl border p-3 text-center shadow-2xl backdrop-blur-md transition-all ${
-                      scanResult.message === "Double claim blocked."
-                        ? "bg-yellow-950/95 border-yellow-500/60 text-yellow-300"
-                        : scanResult.message
-                        ? "bg-red-950/95 border-red-500/60 text-red-300"
-                        : "bg-emerald-950/95 border-emerald-500/60 text-emerald-300"
-                    }`}>
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mb-1 ${
-                        scanResult.message === "Double claim blocked."
-                          ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 animate-pulse"
+                  <div className="absolute inset-x-3 bottom-3 z-10">
+                    <div
+                      className="rounded p-3 text-center shadow-2xl backdrop-blur-md"
+                      style={{
+                        background: scanResult.message === "Double claim blocked."
+                          ? "rgba(26, 25, 24, 0.95)"
                           : scanResult.message
-                          ? "bg-red-500/20 text-red-300 border border-red-500/40"
-                          : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse"
-                      }`}>
+                          ? "rgba(26, 25, 24, 0.95)"
+                          : "rgba(26, 25, 24, 0.95)",
+                        border: `2px solid ${
+                          scanResult.message === "Double claim blocked."
+                            ? "#ffb830"
+                            : scanResult.message
+                            ? "#ff2d6f"
+                            : "#c8f135"
+                        }`,
+                        boxShadow: `4px 4px 0px ${
+                          scanResult.message === "Double claim blocked."
+                            ? "#ffb830"
+                            : scanResult.message
+                            ? "#ff2d6f"
+                            : "#c8f135"
+                        }`,
+                      }}
+                    >
+                      <span
+                        className="inline-block px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider mb-1"
+                        style={{
+                          fontFamily: '"JetBrains Mono", monospace',
+                          color: scanResult.message === "Double claim blocked."
+                            ? "#ffb830"
+                            : scanResult.message
+                            ? "#ff2d6f"
+                            : "#c8f135",
+                          background: "rgba(0,0,0,0.4)",
+                        }}
+                      >
                         {scanResult.message === "Double claim blocked."
-                          ? "⚠️ ALREADY CLAIMED"
+                          ? "⚠ DOUBLE CLAIM"
                           : scanResult.message
-                          ? "❌ ACCESS DENIED"
-                          : "✅ APPROVED"}
+                          ? "✕ DENIED"
+                          : "✓ APPROVED"}
                       </span>
                       {scanResult.name && (
-                        <p className="text-sm font-black text-white truncate max-w-[260px] mx-auto">{scanResult.name}</p>
+                        <p className="text-sm font-black text-[#F0EDE8] truncate max-w-[260px] mx-auto">{scanResult.name}</p>
                       )}
                       {scanResult.teamName && (
-                        <p className="text-[11px] font-bold text-slate-200 truncate max-w-[260px] mx-auto mt-0.5">
+                        <p className="text-[11px] font-bold text-[#888580] truncate max-w-[260px] mx-auto mt-0.5" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
                           Team: {scanResult.teamName} {scanResult.teamNumber ? `(${scanResult.teamNumber})` : ''}
                         </p>
                       )}
@@ -570,12 +683,9 @@ export default function ScannerPage() {
                       {/* Next Scan Action Button */}
                       <button
                         onClick={handleNextScan}
-                        className="mt-2.5 w-full rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/20 py-1.5 px-3 text-xs font-black text-white transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-lg"
+                        className="nx-btn nx-btn-primary nx-btn-sm mt-2.5 w-full"
                       >
-                        <span>Next Scan</span>
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
+                        <span>Next Scan ➔</span>
                       </button>
                     </div>
                   </div>
@@ -583,83 +693,95 @@ export default function ScannerPage() {
 
                 {/* Camera support error */}
                 {!isCameraSupported && (
-                  <div className="absolute inset-0 z-10 bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-                    <svg className="h-10 w-10 text-slate-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center" style={{ background: "#111010" }}>
+                    <svg className="h-10 w-10 text-[#888580] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5h.008v.008H16.5V10.5z" />
                     </svg>
-                    <h4 className="font-bold text-slate-300">Camera Access Required</h4>
-                    <p className="text-xs text-slate-500 mt-2 max-w-xs">
-                      Could not find video capture hardware or permissions were denied. Ensure camera access is allowed.
+                    <h4 className="font-bold text-[#F0EDE8]">Camera Access Required</h4>
+                    <p className="text-xs text-[#888580] mt-2 max-w-xs" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                      Video capture hardware missing or permissions denied.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Latest Scan Result Card (Rendered below the camera box so camera stays 100% visible) */}
+              {/* Latest Scan Result Card */}
               {scanResult && (
-                <div className={`mt-4 rounded-xl border p-4 text-left transition-all duration-300 animate-fade-in ${
-                  scanResult.message === "Double claim blocked."
-                    ? "bg-yellow-950/40 border-yellow-500/30"
-                    : scanResult.message
-                    ? "bg-red-950/40 border-red-500/30"
-                    : "bg-emerald-950/40 border-emerald-500/30"
-                }`}>
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 mb-2">
+                <div
+                  className="nx-card-flat mt-4 p-4 text-left"
+                  style={{
+                    borderColor: scanResult.message === "Double claim blocked."
+                      ? "#ffb830"
+                      : scanResult.message
+                      ? "#ff2d6f"
+                      : "#c8f135",
+                  }}
+                >
+                  <div className="flex items-center justify-between pb-2 mb-2" style={{ borderBottom: "1px solid #2E2C2B" }}>
                     <div className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-full ${
-                        scanResult.message === "Double claim blocked."
-                          ? "bg-yellow-400 animate-ping"
-                          : scanResult.message
-                          ? "bg-red-500"
-                          : "bg-emerald-400 animate-pulse"
-                      }`} />
-                      <span className={`text-xs font-black uppercase tracking-wider ${
-                        scanResult.message === "Double claim blocked."
-                          ? "text-yellow-400"
-                          : scanResult.message
-                          ? "text-red-400"
-                          : "text-emerald-400"
-                      }`}>
+                      <span
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          backgroundColor: scanResult.message === "Double claim blocked."
+                            ? "#ffb830"
+                            : scanResult.message
+                            ? "#ff2d6f"
+                            : "#c8f135",
+                        }}
+                        className="animate-pulse"
+                      />
+                      <span
+                        className="text-xs font-black uppercase tracking-wider"
+                        style={{
+                          fontFamily: '"JetBrains Mono", monospace',
+                          color: scanResult.message === "Double claim blocked."
+                            ? "#ffb830"
+                            : scanResult.message
+                            ? "#ff2d6f"
+                            : "#c8f135",
+                        }}
+                      >
                         {scanResult.message === "Double claim blocked."
-                          ? "⚠️ ALREADY CLAIMED"
+                          ? "⚠ DOUBLE CLAIM"
                           : scanResult.message
-                          ? "❌ ACCESS DENIED"
-                          : "✅ APPROVED"}
+                          ? "✕ DENIED"
+                          : "✓ APPROVED"}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-400">{scanResult.time}</span>
+                    <span className="text-[10px] font-mono text-[#888580]">{scanResult.time}</span>
                   </div>
 
                   {scanResult.name && (
-                    <h4 className="text-base font-extrabold text-white">{scanResult.name}</h4>
+                    <h4 className="text-base font-black text-[#F0EDE8] uppercase">{scanResult.name}</h4>
                   )}
 
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-300">
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#888580]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
                     {scanResult.teamName && (
                       <div>
-                        <span className="text-[10px] text-slate-500 block">Team:</span>
-                        <span className="font-semibold text-yellow-300">{scanResult.teamName} {scanResult.teamNumber ? `(${scanResult.teamNumber})` : ''}</span>
+                        <span className="text-[10px] block">Team:</span>
+                        <span className="font-bold text-[#c8f135]">{scanResult.teamName} {scanResult.teamNumber ? `(${scanResult.teamNumber})` : ''}</span>
                       </div>
                     )}
                     {scanResult.college && (
                       <div>
-                        <span className="text-[10px] text-slate-500 block">College:</span>
-                        <span className="font-medium text-slate-300 truncate block">{scanResult.college}</span>
+                        <span className="text-[10px] block">College:</span>
+                        <span className="font-medium text-[#F0EDE8] truncate block">{scanResult.college}</span>
                       </div>
                     )}
                     {scanResult.email && (
                       <div className="col-span-2">
-                        <span className="text-[10px] text-slate-500 block">Email:</span>
-                        <span className="font-mono text-[11px] text-slate-300 truncate block">{scanResult.email}</span>
+                        <span className="text-[10px] block">Email:</span>
+                        <span className="text-[#888580] truncate block">{scanResult.email}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Manual Next Scan Action Button */}
                   <button
                     onClick={handleNextScan}
-                    className="mt-3.5 w-full rounded-lg bg-slate-900 hover:bg-slate-800 active:scale-95 border border-slate-700 py-2 px-4 text-xs font-bold text-white transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                    className="nx-btn nx-btn-primary nx-btn-sm mt-3.5 w-full"
                   >
                     <span>Next Scan ➔</span>
                   </button>
@@ -673,44 +795,42 @@ export default function ScannerPage() {
           <div className="lg:col-span-5 space-y-6">
             
             {/* Counter Selector Card */}
-            <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
+            <div className="nx-card space-y-4 relative z-50">
               <div>
-                <h3 className="text-sm font-bold text-slate-200">Counter Target</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Select the active food counter session to verify checkout</p>
+                <h3 className="text-sm font-black uppercase tracking-tight text-[#F0EDE8]">Target Counter Door</h3>
+                <p className="text-xs text-[#888580]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>Select active fulfillment session</p>
               </div>
 
               {isLoadingCounters ? (
-                <div className="h-10 w-full rounded-lg bg-slate-900 animate-pulse" />
+                <div className="h-10 w-full rounded animate-pulse" style={{ background: "#222120" }} />
               ) : (
                 <div className="space-y-3">
-                  <select
+                  <NexusSelect
                     value={selectedCounter}
-                    onChange={(e) => setSelectedCounter(e.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2.5 text-xs text-white focus:border-yellow-400 focus:outline-none focus:ring-1 focus:ring-yellow-400 cursor-pointer"
-                  >
-                    {counters.length === 0 ? (
-                      <option value="" className="bg-slate-900 text-white">No counters defined</option>
-                    ) : (
-                      counters.map((c) => (
-                        <option key={c.id} value={c.id} className="bg-slate-900 text-white">
-                          {c.isOpen ? "🔓" : "🔒"} {c.name} {c.isOpen ? "(OPEN)" : "(CLOSED - LOCKED)"}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    onChange={setSelectedCounter}
+                    placeholder="Select counter session..."
+                    options={
+                      counters.length === 0
+                        ? [{ value: "", label: "No counters defined" }]
+                        : counters.map((c) => ({
+                            value: c.id,
+                            label: `${c.is_open ? "🔓" : "🔒"} ${c.name} ${c.is_open ? "(OPEN)" : "(LOCKED)"}`,
+                          }))
+                    }
+                  />
 
                   {/* Active Counter Status Indicator */}
                   {selectedCounter && (
                     <div className="pt-1">
-                      {counters.find(c => c.id === selectedCounter)?.isOpen ? (
-                        <div className="flex items-center gap-2 text-xs font-semibold text-yellow-400/90">
-                          <span className="h-2 w-2 rounded-full bg-yellow-400 animate-ping" />
-                          <span>Active Counter - Accepting Claims</span>
+                      {counters.find(c => c.id === selectedCounter)?.is_open ? (
+                        <div className="flex items-center gap-2 text-xs font-bold" style={{ color: "#c8f135", fontFamily: '"JetBrains Mono", monospace' }}>
+                          <span className="h-2 w-2 rounded-full bg-[#c8f135] animate-ping" />
+                          <span>COUNTER OPEN — READY FOR SCANS</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 text-xs font-semibold text-red-400/90">
-                          <span className="h-2 w-2 rounded-full bg-red-500" />
-                          <span>Counter Closed - Scans Blocked</span>
+                        <div className="flex items-center gap-2 text-xs font-bold" style={{ color: "#ff2d6f", fontFamily: '"JetBrains Mono", monospace' }}>
+                          <span className="h-2 w-2 rounded-full bg-[#ff2d6f]" />
+                          <span>COUNTER LOCKED — CLAIMS PAUSED</span>
                         </div>
                       )}
                     </div>
@@ -720,61 +840,87 @@ export default function ScannerPage() {
             </div>
 
             {/* Recent Scans Panel */}
-            <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-5 sm:p-6 backdrop-blur-md shadow-xl space-y-4">
+            <div className="nx-card space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-200">Recent Scans</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Logs of active scans in this session</p>
+                  <h3 className="text-sm font-black uppercase tracking-tight text-[#F0EDE8]">Recent Scans</h3>
+                  <p className="text-xs text-[#888580]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>Session activity logs</p>
                 </div>
                 {recentScans.length > 0 && (
                   <button 
                     onClick={() => setRecentScans([])}
-                    className="text-[10px] uppercase font-bold tracking-wider text-slate-500 hover:text-slate-300 transition-all cursor-pointer"
+                    className="text-[10px] uppercase font-bold tracking-wider hover:text-white transition-all cursor-pointer"
+                    style={{ color: "#888580", fontFamily: '"JetBrains Mono", monospace' }}
                   >
                     Clear Logs
                   </button>
                 )}
               </div>
 
-              <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
                 {recentScans.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-slate-600 font-semibold italic">
-                    No scans registered yet.
+                  <div className="py-8 text-center text-xs text-[#888580] italic" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                    No scan activity recorded yet.
                   </div>
                 ) : (
                   recentScans.map((log) => (
                     <div 
                       key={log.id} 
-                      className="flex items-center justify-between rounded-lg border border-slate-900 bg-slate-950/60 p-3 text-xs"
+                      className="flex items-center justify-between p-3 text-xs rounded"
+                      style={{
+                        background: "#222120",
+                        border: "1px solid #2E2C2B",
+                      }}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         {log.status === "OK" ? (
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                          <span
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-bold"
+                            style={{
+                              background: "rgba(200, 241, 53, 0.12)",
+                              border: "1px solid rgba(200, 241, 53, 0.3)",
+                              color: "#c8f135",
+                            }}
+                          >
                             ✓
                           </span>
                         ) : log.status === "ALREADY_CLAIMED" ? (
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
+                          <span
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-bold"
+                            style={{
+                              background: "rgba(255, 184, 48, 0.12)",
+                              border: "1px solid rgba(255, 184, 48, 0.3)",
+                              color: "#ffb830",
+                            }}
+                          >
                             !
                           </span>
                         ) : (
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-400">
+                          <span
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-bold"
+                            style={{
+                              background: "rgba(255, 45, 111, 0.12)",
+                              border: "1px solid rgba(255, 45, 111, 0.3)",
+                              color: "#ff2d6f",
+                            }}
+                          >
                             ✕
                           </span>
                         )}
                         <div className="min-w-0">
-                          <p className="font-bold text-white truncate">{log.name}</p>
+                          <p className="font-bold text-[#F0EDE8] truncate">{log.name}</p>
                           {log.teamName && (
-                            <p className="text-[10px] text-yellow-400/90 font-medium truncate">
+                            <p className="text-[10px] text-[#c8f135] font-medium truncate" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
                               {log.teamName} {log.teamNumber ? `(${log.teamNumber})` : ''}
                             </p>
                           )}
                           {log.email && !log.teamName && (
-                            <p className="text-[10px] text-slate-400 font-mono truncate">{log.email}</p>
+                            <p className="text-[10px] text-[#888580] font-mono truncate">{log.email}</p>
                           )}
-                          {log.message && <p className="text-[10px] text-slate-500 truncate">{log.message}</p>}
+                          {log.message && <p className="text-[10px] text-[#888580] truncate">{log.message}</p>}
                         </div>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-mono shrink-0 ml-2">{log.timestamp}</span>
+                      <span className="text-[10px] text-[#888580] font-mono shrink-0 ml-2">{log.timestamp}</span>
                     </div>
                   ))
                 )}

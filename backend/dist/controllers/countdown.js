@@ -5,7 +5,8 @@ function formatCountdownState(record) {
         isDisplayed: Boolean(record?.isDisplayed ?? record?.is_displayed ?? false),
         isStarted: Boolean(record?.isStarted ?? record?.is_started ?? false),
         startedAt: record?.startedAt ? new Date(record.startedAt).toISOString() : (record?.started_at ? new Date(record.started_at).toISOString() : null),
-        updatedAt: record?.updatedAt ? new Date(record.updatedAt).toISOString() : (record?.updated_at ? new Date(record.updated_at).toISOString() : new Date().toISOString())
+        updatedAt: record?.updatedAt ? new Date(record.updatedAt).toISOString() : (record?.updated_at ? new Date(record.updated_at).toISOString() : new Date().toISOString()),
+        serverTime: new Date().toISOString()
     };
 }
 async function getOrCreateState() {

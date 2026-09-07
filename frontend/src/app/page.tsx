@@ -13,7 +13,7 @@ import Footer from "@/components/Footer/Footer";
 import TickerTape from "@/components/TickerTape/TickerTape";
 import SplashWrapper from "@/components/SplashWrapper";
 import { getSiteUrl } from "@/lib/site";
-import CountDown from "@/components/CountDown/CountDown";
+// import CountDown from "@/components/CountDown/CountDown";
 const siteUrl = getSiteUrl();
 
 const eventJsonLd = {

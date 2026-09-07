@@ -62,6 +62,7 @@ const PATRONS: Patron[] = [
 ];
 
 // ── Section 2: Deans (6 containers) ──────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEANS: Patron[] = [
   {
     type: "person",

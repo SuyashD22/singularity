@@ -15,14 +15,14 @@ import {
 export default function NexusCountdownPage() {
   const router = useRouter();
   const [token, setToken] = useState<string>("");
-  const [admin, setAdmin] = useState<{ role?: string } | null>(null);
+  const [, setAdmin] = useState<{ role?: string } | null>(null);
   const [state, setState] = useState<CountdownState>({
     isDisplayed: false,
     isStarted: false,
     startedAt: null,
     updatedAt: new Date().toISOString()
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -36,14 +36,18 @@ export default function NexusCountdownPage() {
       return;
     }
 
-    const parsedProfile = JSON.parse(savedProfile);
-    if (parsedProfile.role === "volunteer") {
-      router.push("/nexus/scanner");
+    try {
+      const parsedProfile = JSON.parse(savedProfile);
+      if (parsedProfile.role === "volunteer") {
+        router.push("/nexus/scanner");
+        return;
+      }
+      setToken(savedToken);
+      setAdmin(parsedProfile);
+    } catch {
+      router.push("/nexus/login");
       return;
     }
-
-    setToken(savedToken);
-    setAdmin(parsedProfile);
   }, [router]);
 
   // Fetch initial countdown state & setup real-time SSE stream
@@ -168,290 +172,348 @@ export default function NexusCountdownPage() {
   };
 
   return (
-    <main className="mx-auto max-w-5xl w-full px-4 sm:px-6 py-8 sm:py-10 flex-1 space-y-8 font-sans">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-900 pb-6">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-md bg-yellow-400/10 px-2.5 py-1 text-xs font-bold text-yellow-400 border border-yellow-400/20 mb-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
-            CONTROL PROTOCOL
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Launch Countdown Control
-          </h2>
-          <p className="text-sm text-slate-400 mt-1">
-            Broadcast sequence triggers directly to the public website and event display screens.
-          </p>
-        </div>
+    <div
+      className="relative overflow-hidden flex-1 w-full text-[#F0EDE8]"
+      style={{ backgroundColor: "#111010", fontFamily: '"Space Grotesk", sans-serif' }}
+    >
+      <div className="nx-topo" />
 
-        {/* Real-time Status Badge */}
-        <div className="flex items-center gap-3">
-          <div className={`px-4 py-2 rounded-xl border flex items-center gap-2.5 transition-all duration-300 ${
-            state.isStarted
-              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
-              : state.isDisplayed
-              ? "bg-yellow-400/10 border-yellow-400/30 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]"
-              : "bg-slate-900/60 border-slate-800 text-slate-400"
-          }`}>
-            <span className={`h-2.5 w-2.5 rounded-full ${
-              state.isStarted
-                ? "bg-emerald-400 animate-ping"
-                : state.isDisplayed
-                ? "bg-yellow-400 animate-pulse"
-                : "bg-slate-600"
-            }`} />
-            <div className="text-left">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Status</span>
-              <span className="text-xs font-black tracking-wide uppercase">
-                {state.isStarted
-                  ? "LIVE RUNNING"
-                  : state.isDisplayed
-                  ? "DISPLAYED // IDLE (10)"
-                  : "OFFLINE // REMOVED"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Feedback Banner */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-xl text-sm font-semibold flex items-center gap-3 border transition-all animate-in fade-in slide-in-from-top-2 duration-300 ${
-            feedback.type === "success"
-              ? "bg-emerald-950/40 text-emerald-300 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]"
-              : "bg-red-950/40 text-red-300 border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
-          }`}
-        >
-          <span className="text-base">{feedback.type === "success" ? "✓" : "⚠"}</span>
-          <span>{feedback.message}</span>
-        </div>
-      )}
-
-      {/* Main Control Console Card */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/50 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-        {/* Ambient top border glow */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent" />
-
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/60 pb-5">
+      <main className="relative z-10 mx-auto max-w-5xl w-full px-4 sm:px-6 py-8 sm:py-10 flex-1 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6" style={{ borderBottom: "1px solid #2E2C2B" }}>
           <div>
-            <h3 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-              <svg className="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Execution Controls
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Follow sequence: Click <strong className="text-yellow-400">Display</strong> first to attach the idle screen, then <strong className="text-emerald-400">Start</strong> to trigger the live countdown.
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.65rem",
+                  letterSpacing: "0.15em",
+                  color: "#c8f135",
+                  background: "rgba(200,241,53,0.1)",
+                  padding: "2px 8px",
+                  borderRadius: "2px",
+                  border: "1px solid rgba(200,241,53,0.3)",
+                }}
+              >
+                CONTROL PROTOCOL
+              </span>
+              <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: "0.7rem", color: "#888580" }}>{`
+                // BROADCAST SYNC
+              `}</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#F0EDE8]">
+              Launch Countdown Control
+            </h1>
+            <p className="text-xs text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+              Broadcast real-time triggers to stage displays and the main public frontend.
             </p>
           </div>
 
-          <span className="text-xs font-mono text-slate-500">
-            Last Synced: {new Date(state.updatedAt).toLocaleTimeString()}
-          </span>
+          {/* Real-time Status Badge */}
+          <div className="flex items-center gap-3">
+            <div
+              className="nx-card-flat flex items-center gap-3 py-2 px-4"
+              style={{
+                borderColor: state.isStarted ? "#c8f135" : state.isDisplayed ? "rgba(200,241,53,0.4)" : "#2E2C2B",
+                background: state.isStarted ? "rgba(200,241,53,0.08)" : "#1A1918",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: state.isStarted ? "#c8f135" : state.isDisplayed ? "#c8f135" : "#888580",
+                }}
+                className={state.isStarted ? "animate-ping" : state.isDisplayed ? "animate-pulse" : ""}
+              />
+              <div>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "0.6rem",
+                    color: "#888580",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    display: "block",
+                  }}
+                >
+                  STATE
+                </span>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: state.isStarted ? "#c8f135" : state.isDisplayed ? "#c8f135" : "#888580",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {state.isStarted
+                    ? "LIVE RUNNING"
+                    : state.isDisplayed
+                    ? "DISPLAYED // IDLE (10)"
+                    : "OFFLINE // REMOVED"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Buttons Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* 1. DISPLAY BUTTON */}
-          <button
-            onClick={handleDisplay}
-            disabled={actionLoading !== null || state.isDisplayed}
-            className={`flex flex-col items-center justify-center p-5 rounded-xl border text-center transition-all duration-200 cursor-pointer active:scale-98 ${
-              state.isDisplayed
-                ? "bg-yellow-400/15 border-yellow-400 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.15)] ring-1 ring-yellow-400/30"
-                : "bg-slate-900/60 border-slate-800 text-white hover:border-yellow-400/50 hover:bg-slate-900"
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+        {/* Feedback Banner */}
+        {feedback && (
+          <div
+            className="p-4 text-xs font-bold flex items-center gap-3"
+            style={{
+              background: feedback.type === "success" ? "rgba(200, 241, 53, 0.1)" : "rgba(255, 45, 111, 0.1)",
+              border: `1px solid ${feedback.type === "success" ? "rgba(200, 241, 53, 0.3)" : "rgba(255, 45, 111, 0.3)"}`,
+              borderRadius: "4px",
+              color: feedback.type === "success" ? "#c8f135" : "#ff2d6f",
+              fontFamily: '"JetBrains Mono", monospace',
+            }}
           >
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center mb-3 bg-yellow-400/10 border border-yellow-400/20 text-yellow-400">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </div>
-            <span className="text-sm font-extrabold uppercase tracking-wider">
-              {actionLoading === "display" ? "Enabling..." : state.isDisplayed ? "Display Active" : "Display"}
-            </span>
-            <span className="text-[11px] text-slate-400 mt-1">
-              {state.isDisplayed ? "Attached on public site (Idle 10)" : "Attach component to frontend"}
-            </span>
-          </button>
+            <span className="text-base">{feedback.type === "success" ? "✓" : "⚠"}</span>
+            <span>{feedback.message}</span>
+          </div>
+        )}
 
-          {/* 2. START BUTTON */}
-          <button
-            onClick={handleStart}
-            disabled={actionLoading !== null || !state.isDisplayed || state.isStarted}
-            className={`flex flex-col items-center justify-center p-5 rounded-xl border text-center transition-all duration-200 cursor-pointer active:scale-98 ${
-              state.isStarted
-                ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_25px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400/50 animate-pulse"
-                : state.isDisplayed
-                ? "bg-yellow-400 text-black border-yellow-400 font-black hover:bg-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.25)]"
-                : "bg-slate-900/40 border-slate-800/60 text-slate-500 cursor-not-allowed"
-            } disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-3 ${
-              state.isDisplayed && !state.isStarted
-                ? "bg-black/10 text-black"
-                : "bg-emerald-400/10 border border-emerald-400/20 text-emerald-400"
-            }`}>
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+        {/* Main Control Console Card */}
+        <div className="nx-card">
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4" style={{ borderBottom: "1px solid #2E2C2B" }}>
+            <div>
+              <h3 className="text-lg font-black uppercase tracking-tight text-[#F0EDE8] flex items-center gap-2">
+                <svg className="h-5 w-5 text-[#c8f135]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Sequence Triggers
+              </h3>
+              <p className="text-xs text-[#888580] mt-0.5" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                Follow flow: Click <strong style={{ color: "#c8f135" }}>DISPLAY</strong> to attach idle state, then <strong style={{ color: "#c8f135" }}>START</strong> to trigger sequence.
+              </p>
             </div>
-            <span className="text-sm font-extrabold uppercase tracking-wider">
-              {actionLoading === "start" ? "Starting..." : state.isStarted ? "Running Live" : "Start"}
-            </span>
-            <span className={`text-[11px] mt-1 ${state.isDisplayed && !state.isStarted ? "text-black/80 font-medium" : "text-slate-400"}`}>
-              {!state.isDisplayed
-                ? "Requires Display ON first"
-                : state.isStarted
-                ? "10 to 1 sequence active"
-                : "Begin real-time sequence"}
-            </span>
-          </button>
 
-          {/* 3. REMOVE BUTTON */}
-          <button
-            onClick={handleRemove}
-            disabled={actionLoading !== null || !state.isDisplayed}
-            className={`flex flex-col items-center justify-center p-5 rounded-xl border text-center transition-all duration-200 cursor-pointer active:scale-98 ${
-              state.isDisplayed
-                ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/60"
-                : "bg-slate-900/30 border-slate-800/40 text-slate-600 cursor-not-allowed"
-            } disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center mb-3 bg-red-400/10 border border-red-400/20 text-red-400">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </div>
-            <span className="text-sm font-extrabold uppercase tracking-wider">
-              {actionLoading === "remove" ? "Removing..." : "Remove"}
+            <span
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: "0.65rem",
+                color: "#888580",
+              }}
+            >
+              Synced: {new Date(state.updatedAt).toLocaleTimeString()}
             </span>
-            <span className="text-[11px] text-slate-400 mt-1">
-              Hide countdown completely
-            </span>
-          </button>
+          </div>
 
-          {/* 4. RESET BUTTON */}
-          <button
-            onClick={handleReset}
-            disabled={actionLoading !== null || !state.isStarted}
-            className={`flex flex-col items-center justify-center p-5 rounded-xl border text-center transition-all duration-200 cursor-pointer active:scale-98 ${
-              state.isStarted
-                ? "bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-500 hover:bg-slate-800"
-                : "bg-slate-900/30 border-slate-800/40 text-slate-600 cursor-not-allowed"
-            } disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center mb-3 bg-slate-800 border border-slate-700 text-slate-400">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </div>
-            <span className="text-sm font-extrabold uppercase tracking-wider">
-              {actionLoading === "reset" ? "Resetting..." : "Reset"}
-            </span>
-            <span className="text-[11px] text-slate-400 mt-1">
-              Reset sequence back to 10
-            </span>
-          </button>
+          {/* Buttons Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. DISPLAY BUTTON */}
+            <button
+              onClick={handleDisplay}
+              disabled={actionLoading !== null || state.isDisplayed}
+              className="flex flex-col items-center justify-center p-6 text-center transition-all cursor-pointer rounded-lg group"
+              style={{
+                border: "2px solid #c8f135",
+                background: state.isDisplayed ? "rgba(200, 241, 53, 0.12)" : "#111010",
+                boxShadow: state.isDisplayed ? "2px 2px 0px #c8f135" : "4px 4px 0px #c8f135",
+                transform: state.isDisplayed ? "translate(2px, 2px)" : "none",
+                opacity: (actionLoading !== null && actionLoading !== "display") ? 0.6 : 1,
+              }}
+            >
+              <div
+                className="h-10 w-10 rounded-md flex items-center justify-center mb-3"
+                style={{
+                  background: "rgba(200, 241, 53, 0.12)",
+                  border: "1.5px solid #c8f135",
+                  color: "#c8f135",
+                }}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </div>
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.85rem",
+                  fontWeight: 900,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#F0EDE8",
+                }}
+              >
+                {actionLoading === "display" ? "Enabling..." : state.isDisplayed ? "Display Active ✓" : "1. Display"}
+              </span>
+              <span className="text-[11px] text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                {state.isDisplayed ? "Attached on public site" : "Arm idle screen"}
+              </span>
+            </button>
+
+            {/* 2. START BUTTON */}
+            <button
+              onClick={handleStart}
+              disabled={actionLoading !== null || !state.isDisplayed || state.isStarted}
+              className="flex flex-col items-center justify-center p-6 text-center transition-all cursor-pointer rounded-lg"
+              style={{
+                border: state.isDisplayed ? "2px solid #c8f135" : "2px solid rgba(200, 241, 53, 0.4)",
+                background: state.isStarted
+                  ? "rgba(200, 241, 53, 0.18)"
+                  : "#111010",
+                boxShadow: state.isDisplayed ? "4px 4px 0px #c8f135" : "4px 4px 0px rgba(200, 241, 53, 0.2)",
+                opacity: !state.isDisplayed || state.isStarted ? 0.5 : 1,
+              }}
+            >
+              <div
+                className="h-10 w-10 rounded-md flex items-center justify-center mb-3"
+                style={{
+                  background: state.isDisplayed ? "rgba(200, 241, 53, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1.5px solid ${state.isDisplayed ? "#c8f135" : "#2E2C2B"}`,
+                  color: state.isDisplayed ? "#c8f135" : "#888580",
+                }}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.85rem",
+                  fontWeight: 900,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: state.isDisplayed ? "#F0EDE8" : "#888580",
+                }}
+              >
+                {actionLoading === "start" ? "Starting..." : state.isStarted ? "Running Live" : "2. Start"}
+              </span>
+              <span
+                className="text-[11px] mt-1 text-[#888580]"
+                style={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                {!state.isDisplayed
+                  ? "Requires Display ON"
+                  : state.isStarted
+                  ? "Sequence Active (10 -> 1)"
+                  : "Begin live countdown"}
+              </span>
+            </button>
+
+            {/* 3. REMOVE BUTTON */}
+            <button
+              onClick={handleRemove}
+              disabled={actionLoading !== null || !state.isDisplayed}
+              className="flex flex-col items-center justify-center p-6 text-center transition-all cursor-pointer rounded-lg"
+              style={{
+                border: "2px solid #ff2d6f",
+                background: "#111010",
+                boxShadow: "4px 4px 0px #ff2d6f",
+                opacity: !state.isDisplayed ? 0.5 : 1,
+              }}
+            >
+              <div
+                className="h-10 w-10 rounded-md flex items-center justify-center mb-3"
+                style={{
+                  background: "rgba(255, 45, 111, 0.12)",
+                  border: "1.5px solid #ff2d6f",
+                  color: "#ff2d6f",
+                }}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.85rem",
+                  fontWeight: 900,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#ff2d6f",
+                }}
+              >
+                {actionLoading === "remove" ? "Removing..." : "Remove"}
+              </span>
+              <span className="text-[11px] text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                Hide countdown completely
+              </span>
+            </button>
+
+            {/* 4. RESET BUTTON */}
+            <button
+              onClick={handleReset}
+              disabled={actionLoading !== null || !state.isStarted}
+              className="flex flex-col items-center justify-center p-6 text-center transition-all cursor-pointer rounded-lg"
+              style={{
+                border: "2px solid #c8f135",
+                background: "#111010",
+                boxShadow: "4px 4px 0px #c8f135",
+                opacity: !state.isStarted ? 0.5 : 1,
+              }}
+            >
+              <div
+                className="h-10 w-10 rounded-md flex items-center justify-center mb-3"
+                style={{
+                  background: "rgba(200, 241, 53, 0.12)",
+                  border: "1.5px solid #c8f135",
+                  color: "#c8f135",
+                }}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.85rem",
+                  fontWeight: 900,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#F0EDE8",
+                }}
+              >
+                {actionLoading === "reset" ? "Resetting..." : "Reset"}
+              </span>
+              <span className="text-[11px] text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                Reset back to idle (10)
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Information & Live Preview Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Instructions Card */}
-        <div className="lg:col-span-1 rounded-2xl border border-slate-900 bg-slate-950/40 p-6 space-y-4">
-          <h4 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-yellow-400" />
-            Standard Operating Procedure
+        <div className="nx-card-flat max-w-2xl space-y-4">
+          <h4
+            className="text-xs font-black uppercase tracking-wider text-[#F0EDE8] flex items-center gap-2"
+            style={{ fontFamily: '"JetBrains Mono", monospace' }}
+          >
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#c8f135" }} />
+            Operating Protocol
           </h4>
-          <ol className="space-y-3 text-xs text-slate-400 list-decimal list-inside leading-relaxed">
+          <ol
+            className="space-y-3 text-xs text-[#888580] list-decimal list-inside leading-relaxed"
+            style={{ fontFamily: '"Space Grotesk", sans-serif' }}
+          >
             <li>
-              <strong className="text-white">Projector / Audience View</strong>: Open <code className="text-yellow-400 bg-yellow-400/10 px-1 py-0.5 rounded">/countdown</code> on stage screens.
+              <strong className="text-[#F0EDE8]">Stage Screens</strong>: Open <code className="text-[#c8f135] bg-[#222120] px-1 py-0.5 rounded font-mono">/countdown</code> on auditoriums/kiosks.
             </li>
             <li>
-              <strong className="text-white">Display</strong>: Click to place the screen in armed standby mode (renders static 10 with ambient noise).
+              <strong className="text-[#F0EDE8]">Display</strong>: Arms the screen in standby mode (static 10 with audio ready).
             </li>
             <li>
-              <strong className="text-white">Start</strong>: Click when the host signals. The countdown runs in real-time.
+              <strong className="text-[#F0EDE8]">Start</strong>: Initiates the 10-second synchronized live descent.
             </li>
             <li>
-              <strong className="text-white">Automatic Transition</strong>: Once the countdown finishes, the public website continues automatically into the splash screen.
+              <strong className="text-[#F0EDE8]">Auto Advance</strong>: Screen automatically launches public site splash upon hitting zero.
             </li>
             <li>
-              <strong className="text-white">Remove</strong>: If not in launch mode, click Remove to leave the site operating normally.
+              <strong className="text-[#F0EDE8]">Remove</strong>: Cleanly dismisses countdown from all client browsers.
             </li>
           </ol>
         </div>
-
-        {/* Public Simulation Status */}
-        <div className="lg:col-span-2 rounded-2xl border border-slate-900 bg-slate-950/40 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-300">
-                Live Public State Preview
-              </h4>
-              <a
-                href="/countdown"
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-yellow-400 hover:text-yellow-300 underline font-semibold flex items-center gap-1"
-              >
-                Open /countdown in new tab ↗
-              </a>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-black p-6 text-center flex flex-col items-center justify-center min-h-[160px]">
-              {!state.isDisplayed ? (
-                <div className="space-y-2">
-                  <span className="text-xs font-mono text-slate-500 uppercase tracking-widest block">
-                    [ PUBLIC FRONTEND // STANDBY ]
-                  </span>
-                  <p className="text-sm font-bold text-slate-400">
-                    Countdown is Removed / Hidden
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    Visitors see normal site splash screen & content. No countdown animation active.
-                  </p>
-                </div>
-              ) : !state.isStarted ? (
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 text-xs font-mono">
-                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                    SEQUENCE ARMED // IDLE
-                  </div>
-                  <div className="text-4xl font-mono font-black text-white drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]">
-                    10
-                  </div>
-                  <p className="text-xs font-mono text-yellow-400/80">
-                    INITIALIZING LAUNCH SEQUENCE — WAITING FOR ADMIN START TRIGGER
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE RUNNING SEQUENCE
-                  </div>
-                  <div className="text-4xl font-mono font-black text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.8)]">
-                    10 → 1
-                  </div>
-                  <p className="text-xs font-mono text-emerald-400">
-                    COUNTDOWN IN PROGRESS — AUTO-ADVANCES TO SPLASH SCREEN ON FINISH
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-900 flex items-center justify-between text-xs text-slate-500">
-            <span>Stage Route: <code className="text-slate-400 font-mono">/countdown</code></span>
-            <span>Home Route: <code className="text-slate-400 font-mono">/</code></span>
-          </div>
-        </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

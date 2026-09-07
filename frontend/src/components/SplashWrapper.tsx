@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import CountDown from "@/components/CountDown/CountDown";
+import CountDown, { TOTAL_COUNTDOWN_DURATION_MS } from "@/components/CountDown/CountDown";
 import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import Navbar from "@/components/Navbar/Navbar";
 import { getApiBaseUrl, fetchCountdownState, CountdownState } from "@/lib/api";
@@ -25,7 +25,15 @@ export default function SplashWrapper({
         const state = await fetchCountdownState();
         if (isMounted) {
           setCountdownState(state);
-          if (state.isDisplayed) {
+
+          const serverOffset = state.serverTime ? (new Date(state.serverTime).getTime() - Date.now()) : 0;
+          const isAlreadyCompleted = Boolean(
+            state.isStarted &&
+            state.startedAt &&
+            ((Date.now() + serverOffset) - new Date(state.startedAt).getTime()) >= TOTAL_COUNTDOWN_DURATION_MS
+          );
+
+          if (state.isDisplayed && !isAlreadyCompleted) {
             setShowCountdown(true);
             setShowSplash(false);
           } else {
@@ -54,16 +62,23 @@ export default function SplashWrapper({
         if (isMounted && data) {
           const isDisp = Boolean(data.isDisplayed);
           const isSt = Boolean(data.isStarted);
+          const serverOffset = data.serverTime ? (new Date(data.serverTime).getTime() - Date.now()) : 0;
+          const isAlreadyCompleted = Boolean(
+            isSt &&
+            data.startedAt &&
+            ((Date.now() + serverOffset) - new Date(data.startedAt).getTime()) >= TOTAL_COUNTDOWN_DURATION_MS
+          );
 
           setCountdownState({
             isDisplayed: isDisp,
             isStarted: isSt,
             startedAt: data.startedAt || null,
             updatedAt: data.updatedAt || new Date().toISOString(),
+            serverTime: data.serverTime,
           });
 
-          // If admin clicked Remove (isDisplayed: false), remove countdown immediately
-          if (!isDisp) {
+          // If admin clicked Remove (isDisplayed: false) or already completed, remove countdown immediately
+          if (!isDisp || isAlreadyCompleted) {
             setShowCountdown(false);
           } else {
             setShowCountdown(true);
@@ -112,6 +127,8 @@ export default function SplashWrapper({
           >
             <CountDown
               isStarted={countdownState.isStarted}
+              startedAt={countdownState.startedAt}
+              serverTime={countdownState.serverTime}
               onComplete={() => {
                 setShowCountdown(false);
                 setShowSplash(true);

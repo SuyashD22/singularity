@@ -71,6 +71,7 @@ const isCompactName = (name: string): boolean => name.length > 18;
 // Faculty coordinators only carry a LinkedIn link (no GitHub / Instagram
 // for this group). Snitha has no LinkedIn account at all, so she is left
 // with no social fields — her socials row will simply render empty.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const FACULTY_COORDINATORS: Coordinator[] = [
   { name: "Mrs. Sharon C Dsouza", role: "Faculty Coordinator", seed: "sharon", photo: "/team/sharon.webp", color: "#ff8ed4", linkedin: "https://www.linkedin.com/in/sharon-dsouza-b89ab9233/" },
   { name: "Mrs. Snitha Shetty", role: "Faculty Coordinator", seed: "Snitha", photo: "/team/snithashetty.webp", color: "#4ecdc4" },

@@ -78,6 +78,7 @@ export interface CountdownState {
   isStarted: boolean;
   startedAt: string | null;
   updatedAt: string;
+  serverTime?: string;
 }
 
 export const fetchCountdownState = async (): Promise<CountdownState> => {

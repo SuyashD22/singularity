@@ -30,6 +30,7 @@ export default function DashboardPage() {
     localStorage.removeItem("admin_profile");
     router.push("/nexus/login");
   };
+
   const [counters, setCounters] = useState<CounterSession[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [staff, setStaff] = useState<Record<string, unknown>[]>([]);
@@ -52,14 +53,19 @@ export default function DashboardPage() {
       return;
     }
 
-    const parsedProfile = JSON.parse(profile);
-    // Volunteers are not allowed on the Console page
-    if (parsedProfile.role === 'volunteer') {
-      router.push("/nexus/scanner");
+    try {
+      const parsedProfile = JSON.parse(profile);
+      // Volunteers are not allowed on the Console page
+      if (parsedProfile.role === 'volunteer') {
+        router.push("/nexus/scanner");
+        return;
+      }
+      setAdmin(parsedProfile);
+    } catch {
+      router.push("/nexus/login");
       return;
     }
 
-    setAdmin(parsedProfile);
     fetchDashboardData(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -161,14 +167,23 @@ export default function DashboardPage() {
     setConfirmSessionId(null);
   };
 
-
-
   if (isLoading && !admin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050A18] text-white">
+      <div
+        className="flex min-h-screen items-center justify-center text-white"
+        style={{ backgroundColor: "#111010", fontFamily: '"Space Grotesk", sans-serif' }}
+      >
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-yellow-400 border-t-transparent" />
-          <span className="text-sm font-semibold text-slate-400">Loading terminal interface...</span>
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+            style={{ borderColor: "#c8f135", borderTopColor: "transparent" }}
+          />
+          <span
+            className="text-xs uppercase tracking-widest text-[#888580]"
+            style={{ fontFamily: '"JetBrains Mono", monospace' }}
+          >
+            Loading Terminal...
+          </span>
         </div>
       </div>
     );
@@ -186,31 +201,88 @@ export default function DashboardPage() {
   const isTargetSessionOpen = counters.find(c => c.id === confirmSessionId)?.is_open || false;
 
   return (
-    <div className="relative overflow-hidden flex-1 w-full bg-[#050A18] text-white font-sans">
-      {/* Decorative ambient neon background glows */}
-      <div className="absolute top-[-10%] right-[-10%] h-[400px] w-[400px] rounded-full bg-yellow-400/5 blur-[120px]" />
-      <div className="absolute bottom-[-10%] left-[-10%] h-[400px] w-[400px] rounded-full bg-yellow-400/5 blur-[120px]" />
-
-
+    <div
+      className="relative overflow-hidden flex-1 w-full text-[#F0EDE8]"
+      style={{ backgroundColor: "#111010", fontFamily: '"Space Grotesk", sans-serif' }}
+    >
+      {/* Topo background pattern overlay */}
+      <div className="nx-topo" />
 
       {/* Main Dashboard Layout */}
-      <main className="mx-auto max-w-7xl p-6 sm:p-8 space-y-8">
-        
+      <main className="relative z-10 mx-auto max-w-7xl p-4 sm:p-8 space-y-8">
+
+        {/* Header Title Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4" style={{ borderBottom: "1px solid #2E2C2B" }}>
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.65rem",
+                  letterSpacing: "0.15em",
+                  color: "#c8f135",
+                  background: "rgba(200,241,53,0.1)",
+                  padding: "2px 8px",
+                  borderRadius: "2px",
+                  border: "1px solid rgba(200,241,53,0.3)",
+                }}
+              >
+                SYSTEM LIVE
+              </span>
+              <span
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: "0.7rem",
+                  color: "#888580",
+                }}
+              >{`
+                // ADMIN CONSOLE
+              `}</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#F0EDE8] mt-1">
+              Command Overview
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => fetchDashboardData(localStorage.getItem("admin_token") || "")}
+              disabled={isLoading}
+              className="nx-btn nx-btn-outline nx-btn-sm"
+              title="Refresh Data"
+            >
+              <svg className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
         {/* Error Alert */}
         {error && (
-          <div className="flex items-center gap-3 rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400 animate-pulse">
+          <div
+            className="flex items-center gap-3 p-4 text-xs"
+            style={{
+              background: "rgba(255, 45, 111, 0.1)",
+              border: "1px solid rgba(255, 45, 111, 0.3)",
+              borderRadius: "4px",
+              color: "#ff2d6f",
+              fontFamily: '"JetBrains Mono", monospace',
+            }}
+          >
             <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <div>
-              <p className="font-bold">Fetch Error</p>
-              <p className="text-xs text-red-400/80 mt-1">{error}</p>
+            <div className="flex-1">
+              <p className="font-bold">Sync Error</p>
+              <p className="text-[#ff2d6f]/80 mt-0.5">{error}</p>
             </div>
             <button 
               onClick={() => fetchDashboardData(localStorage.getItem("admin_token") || "")}
-              className="ml-auto rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-bold hover:bg-red-500/30 text-white cursor-pointer"
+              className="nx-btn nx-btn-danger nx-btn-sm"
             >
-              Retry Connection
+              Retry
             </button>
           </div>
         )}
@@ -218,71 +290,159 @@ export default function DashboardPage() {
         {/* Top Cards Statistics Row */}
         <section className="grid gap-6 lg:grid-cols-3 md:grid-cols-2">
           {/* Participant Check-In Progress card */}
-          <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-6 backdrop-blur-md shadow-lg transition-all hover:border-yellow-400/10">
-            <div className="flex items-center justify-between mb-4">
+          <div className="nx-card">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Participants Check-In</h3>
-                <p className="text-3xl font-extrabold text-white mt-1">
-                  {reportedCount} <span className="text-sm font-semibold text-slate-500">/ {totalParticipants} reported</span>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "0.65rem",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#888580",
+                    fontWeight: 700,
+                  }}
+                >
+                  Participants Check-In
+                </span>
+                <p className="text-3xl font-black text-[#F0EDE8] mt-1 tracking-tight">
+                  {reportedCount} <span className="text-sm font-bold text-[#888580]">/ {totalParticipants}</span>
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-black text-yellow-400 drop-shadow-[0_0_8px_rgba(234,179,8,0.2)]">{reportedPercentage}%</span>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "1.75rem",
+                    fontWeight: 900,
+                    color: "#c8f135",
+                  }}
+                >
+                  {reportedPercentage}%
+                </span>
               </div>
             </div>
             
             {/* Custom Meter */}
-            <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800/50">
+            <div
+              className="w-full h-2 rounded overflow-hidden"
+              style={{ background: "#222120", border: "1px solid #2E2C2B" }}
+            >
               <div 
-                className="bg-yellow-400 h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_#facc15]"
-                style={{ width: `${reportedPercentage}%` }}
+                className="h-full transition-all duration-1000"
+                style={{
+                  width: `${reportedPercentage}%`,
+                  backgroundColor: "#c8f135",
+                  boxShadow: "0 0 8px rgba(200, 241, 53, 0.4)",
+                }}
               />
             </div>
             
-            <p className="text-xs text-slate-500 mt-3">
-              Automatically updates when participant passes are scanned.
+            <p
+              className="text-xs mt-3 text-[#888580]"
+              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: "0.7rem" }}
+            >
+              Updates dynamically when participant passes are scanned.
             </p>
           </div>
 
           {/* Event Staff Check-In Card */}
-          <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-6 backdrop-blur-md shadow-lg transition-all hover:border-yellow-400/10">
-            <div className="flex items-center justify-between mb-4">
+          <div className="nx-card">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Event Staff Check-In</h3>
-                <p className="text-3xl font-extrabold text-white mt-1">
-                  {reportedStaffCount} <span className="text-sm font-semibold text-slate-500">/ {totalStaff} reported</span>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "0.65rem",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#888580",
+                    fontWeight: 700,
+                  }}
+                >
+                  Staff / Vol Check-In
+                </span>
+                <p className="text-3xl font-black text-[#F0EDE8] mt-1 tracking-tight">
+                  {reportedStaffCount} <span className="text-sm font-bold text-[#888580]">/ {totalStaff}</span>
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-black text-yellow-400 drop-shadow-[0_0_8px_rgba(234,179,8,0.2)]">{reportedStaffPercentage}%</span>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "1.75rem",
+                    fontWeight: 900,
+                    color: "#c8f135",
+                  }}
+                >
+                  {reportedStaffPercentage}%
+                </span>
               </div>
             </div>
             
             {/* Custom Meter */}
-            <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800/50">
+            <div
+              className="w-full h-2 rounded overflow-hidden"
+              style={{ background: "#222120", border: "1px solid #2E2C2B" }}
+            >
               <div 
-                className="bg-yellow-400 h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_#facc15]"
-                style={{ width: `${reportedStaffPercentage}%` }}
+                className="h-full transition-all duration-1000"
+                style={{
+                  width: `${reportedStaffPercentage}%`,
+                  backgroundColor: "#c8f135",
+                  boxShadow: "0 0 8px rgba(200, 241, 53, 0.4)",
+                }}
               />
             </div>
             
-            <p className="text-xs text-slate-500 mt-3">
-              Applies to HODs, Faculty, and Volunteers checked-in.
+            <p
+              className="text-xs mt-3 text-[#888580]"
+              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: "0.7rem" }}
+            >
+              HODs, Faculty Coordinators, and Volunteers reported.
             </p>
           </div>
 
           {/* Quick Stats Panel */}
-          <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-6 backdrop-blur-md shadow-lg transition-all hover:border-yellow-400/10 md:col-span-2 lg:col-span-1">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border-r border-slate-900 pr-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Registered Teams</h4>
-                <p className="text-2xl font-bold mt-1 text-slate-200">
+          <div className="nx-card md:col-span-2 lg:col-span-1">
+            <div className="grid grid-cols-2 gap-4 h-full items-center">
+              <div style={{ borderRight: "1px solid #2E2C2B", paddingRight: "16px" }}>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "0.65rem",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#888580",
+                    fontWeight: 700,
+                  }}
+                >
+                  Registered Teams
+                </span>
+                <p className="text-3xl font-black text-[#F0EDE8] mt-1">
                   {isLoading ? "..." : Array.from(new Set(participants.map(p => p.team_id).filter(id => id !== null))).length}
                 </p>
               </div>
-              <div className="pl-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Active Counter</h4>
-                <p className={`text-base font-extrabold mt-1.5 truncate ${counters.find(c => c.is_open) ? 'text-yellow-400 drop-shadow-[0_0_4px_rgba(234,179,8,0.2)]' : 'text-slate-500'}`}>
+              <div style={{ paddingLeft: "8px" }}>
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: "0.65rem",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#888580",
+                    fontWeight: 700,
+                  }}
+                >
+                  Active Counter
+                </span>
+                <p
+                  className="text-lg font-black mt-1.5 truncate"
+                  style={{
+                    color: counters.find(c => c.is_open) ? "#c8f135" : "#888580",
+                    fontFamily: '"Space Grotesk", sans-serif',
+                  }}
+                >
                   {isLoading ? "..." : counters.find(c => c.is_open)?.name || "None"}
                 </p>
               </div>
@@ -291,54 +451,112 @@ export default function DashboardPage() {
         </section>
 
         {/* Counter Controllers Dashboard Grid */}
-        <section className="space-y-4">
+        <section className="space-y-4 pt-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-            <h3 className="text-lg font-bold text-slate-200">Session Counter Switches</h3>
-            <span className="text-xs text-slate-500">Enable switches to unlock verification claims at kiosks</span>
+            <div>
+              <h3 className="text-xl font-black uppercase tracking-tight text-[#F0EDE8]">
+                Session Counter Doors
+              </h3>
+              <p className="text-xs text-[#888580]" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                Only open counters allow verification & claims processing at kiosks
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {isLoading && counters.length === 0 ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-[180px] rounded-2xl bg-slate-900/40 border border-slate-900 animate-pulse" />
+                <div
+                  key={i}
+                  className="h-[200px] rounded animate-pulse"
+                  style={{ background: "#1A1918", border: "2px solid #2E2C2B" }}
+                />
               ))
             ) : (
               counters.map((session) => (
                 <div 
                   key={session.id}
-                  className={`relative overflow-hidden rounded-2xl border bg-slate-950/40 p-6 shadow-md transition-all duration-300 ${
-                    session.is_open 
-                      ? "border-yellow-400/30 hover:border-yellow-400/50 hover:shadow-[0_0_15px_rgba(234,179,8,0.05)]" 
-                      : "border-slate-900 hover:border-slate-800/80"
-                  }`}
+                  className="nx-card relative"
+                  style={{
+                    borderColor: session.is_open ? "#c8f135" : "#2E2C2B",
+                    boxShadow: session.is_open ? "4px 4px 0px #c8f135" : "4px 4px 0px rgba(0,0,0,0.5)",
+                  }}
                 >
-                  {/* Glowing vertical neon bar if counter is open */}
+                  {/* Glowing left edge accent when open */}
                   {session.is_open && (
-                    <div className="absolute top-0 bottom-0 left-0 w-1 bg-yellow-400 shadow-[0_0_8px_#facc15]" />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        width: "4px",
+                        backgroundColor: "#c8f135",
+                      }}
+                    />
                   )}
 
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{session.id}</span>
-                      <h4 className="text-lg font-bold text-white mt-0.5">{session.name}</h4>
+                      <span
+                        style={{
+                          fontFamily: '"JetBrains Mono", monospace',
+                          fontSize: "0.65rem",
+                          color: "#888580",
+                          letterSpacing: "0.15em",
+                          textTransform: "uppercase",
+                          fontWeight: 700,
+                        }}
+                      >
+                        SESSION // {session.id}
+                      </span>
+                      <h4 className="text-lg font-black uppercase tracking-tight text-[#F0EDE8] mt-0.5">
+                        {session.name}
+                      </h4>
                     </div>
 
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${
-                      session.is_open 
-                        ? "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20" 
-                        : "bg-slate-900 text-slate-500 border border-slate-800/50"
-                    }`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${session.is_open ? "bg-yellow-400 animate-pulse" : "bg-slate-600"}`} />
+                    <span
+                      style={{
+                        fontFamily: '"JetBrains Mono", monospace',
+                        fontSize: "0.65rem",
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        padding: "3px 8px",
+                        borderRadius: "2px",
+                        border: session.is_open
+                          ? "1px solid rgba(200, 241, 53, 0.4)"
+                          : "1px solid #2E2C2B",
+                        backgroundColor: session.is_open
+                          ? "rgba(200, 241, 53, 0.12)"
+                          : "#222120",
+                        color: session.is_open ? "#c8f135" : "#888580",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          backgroundColor: session.is_open ? "#c8f135" : "#888580",
+                        }}
+                        className={session.is_open ? "animate-pulse" : ""}
+                      />
                       {session.is_open ? "ACTIVE" : "LOCKED"}
                     </span>
                   </div>
 
-                  <div className="space-y-2 mb-6">
-                    <p className="text-xs text-slate-500">
-                      Opened: <span className="font-semibold text-slate-400">{session.opened_at ? new Date(session.opened_at).toLocaleTimeString() : "N/A"}</span>
+                  <div
+                    className="space-y-1.5 mb-6 text-xs text-[#888580]"
+                    style={{ fontFamily: '"JetBrains Mono", monospace' }}
+                  >
+                    <p>
+                      Opened: <span className="text-[#F0EDE8]">{session.opened_at ? new Date(session.opened_at).toLocaleTimeString() : "N/A"}</span>
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Closed: <span className="font-semibold text-slate-400">{session.closed_at ? new Date(session.closed_at).toLocaleTimeString() : "N/A"}</span>
+                    <p>
+                      Closed: <span className="text-[#F0EDE8]">{session.closed_at ? new Date(session.closed_at).toLocaleTimeString() : "N/A"}</span>
                     </p>
                   </div>
 
@@ -346,16 +564,19 @@ export default function DashboardPage() {
                   <button
                     onClick={() => handleToggleCounter(session.id)}
                     disabled={actionLoading !== null}
-                    className={`w-full py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 active:scale-[0.98] border cursor-pointer ${
-                      session.is_open
-                        ? "bg-transparent text-yellow-400 border-yellow-400/30 hover:border-yellow-400/60 hover:bg-yellow-400/5"
-                        : "bg-yellow-400 text-black border-yellow-400 hover:bg-yellow-300 hover:shadow-[0_0_15px_rgba(234,179,8,0.15)]"
-                    } disabled:opacity-50`}
+                    className={`nx-btn w-full ${session.is_open ? 'nx-btn-outline' : 'nx-btn-primary'}`}
+                    style={session.is_open ? { borderColor: "#ff2d6f", color: "#ff2d6f", boxShadow: "4px 4px 0px #ff2d6f" } : {}}
                   >
                     {actionLoading === session.id ? (
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className={`h-3 w-3 animate-spin rounded-full border-2 border-t-transparent ${session.is_open ? 'border-yellow-400' : 'border-black'}`} />
-                        <span>Updating...</span>
+                      <div className="flex items-center justify-center gap-2">
+                        <div
+                          className="h-3 w-3 animate-spin rounded-full border-2 border-t-transparent"
+                          style={{
+                            borderColor: session.is_open ? '#ff2d6f' : '#111010',
+                            borderTopColor: 'transparent',
+                          }}
+                        />
+                        <span>Updating Door...</span>
                       </div>
                     ) : session.is_open ? (
                       "Lock Counter Door"
@@ -372,24 +593,38 @@ export default function DashboardPage() {
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#0b1329] border border-slate-800/80 rounded-2xl max-w-md w-full p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] space-y-5 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div
+            className="nx-card max-w-md w-full p-6 space-y-5"
+            style={{
+              backgroundColor: "#1A1918",
+              borderColor: isTargetSessionOpen ? "#ff2d6f" : "#c8f135",
+              boxShadow: isTargetSessionOpen ? "6px 6px 0px #ff2d6f" : "6px 6px 0px #c8f135",
+            }}
+          >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-400">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded"
+                style={{
+                  background: isTargetSessionOpen ? "rgba(255, 45, 111, 0.12)" : "rgba(200, 241, 53, 0.12)",
+                  border: isTargetSessionOpen ? "1px solid rgba(255, 45, 111, 0.3)" : "1px solid rgba(200, 241, 53, 0.3)",
+                  color: isTargetSessionOpen ? "#ff2d6f" : "#c8f135",
+                }}
+              >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-white">
+              <h3 className="text-lg font-black uppercase tracking-tight text-[#F0EDE8]">
                 {isTargetSessionOpen ? "Lock Counter Door?" : "Unlock Counter Door?"}
               </h3>
             </div>
             
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+            <p className="text-xs sm:text-sm text-[#888580] leading-relaxed">
               {isTargetSessionOpen ? (
-                <>Are you sure you want to lock and close <span className="font-bold text-yellow-400">&quot;{confirmSessionName}&quot;</span>? Scanners will no longer be able to verify claims for this counter.</>
+                <>Are you sure you want to lock and close <span className="font-bold text-[#F0EDE8]">&quot;{confirmSessionName}&quot;</span>? Scanners will no longer be able to verify claims for this counter.</>
               ) : (
-                <>Do you want to close any other active counter sessions and open <span className="font-bold text-yellow-400">&quot;{confirmSessionName}&quot;</span>?</>
+                <>Do you want to close any other active counter sessions and open <span className="font-bold text-[#c8f135]">&quot;{confirmSessionName}&quot;</span>?</>
               )}
             </p>
 
@@ -399,13 +634,13 @@ export default function DashboardPage() {
                   setShowConfirmModal(false);
                   setConfirmSessionId(null);
                 }}
-                className="rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-900/40 hover:bg-slate-900/80 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer"
+                className="nx-btn nx-btn-ghost nx-btn-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmOpen}
-                className="rounded-lg bg-yellow-400 text-black hover:bg-yellow-300 px-5 py-2 text-xs font-bold transition-all shadow-[0_0_15px_rgba(234,179,8,0.2)] active:scale-95 cursor-pointer"
+                className={`nx-btn nx-btn-sm ${isTargetSessionOpen ? 'nx-btn-danger' : 'nx-btn-primary'}`}
               >
                 {isTargetSessionOpen ? "Lock Door" : "Unlock Door"}
               </button>

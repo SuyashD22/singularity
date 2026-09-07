@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getApiBaseUrl } from "@/lib/api";
+import NexusSelect from "../components/NexusSelect";
 
 /* ─────────────────────────── Types ─────────────────────────── */
 interface ClaimRecord {
@@ -43,15 +44,12 @@ function formatDate(iso: string | null) {
   });
 }
 
-const ROLE_COLORS: Record<string, string> = {
-  hod: "bg-purple-500/15 text-purple-300 border-purple-500/30",
-  faculty: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
-  volunteer: "bg-teal-500/15 text-teal-300 border-teal-500/30",
-  staff: "bg-slate-500/15 text-slate-300 border-slate-500/30",
-};
-function roleColor(role: string) {
+function roleBadgeStyle(role: string) {
   const key = role.toLowerCase().replace(/^staff \(/, "").replace(/\)$/, "");
-  return ROLE_COLORS[key] || "bg-slate-500/15 text-slate-300 border-slate-500/30";
+  if (key === "hod") return { bg: "rgba(167, 139, 250, 0.12)", color: "#a78bfa", border: "rgba(167, 139, 250, 0.3)" };
+  if (key === "faculty") return { bg: "rgba(99, 102, 241, 0.12)", color: "#818cf8", border: "rgba(99, 102, 241, 0.3)" };
+  if (key === "volunteer") return { bg: "rgba(45, 212, 191, 0.12)", color: "#2dd4bf", border: "rgba(45, 212, 191, 0.3)" };
+  return { bg: "rgba(255, 255, 255, 0.05)", color: "#888580", border: "#2E2C2B" };
 }
 
 /* ─────────────────────────── Page ─────────────────────────── */
@@ -87,7 +85,12 @@ export default function ClaimsReportPage() {
     const token = localStorage.getItem("admin_token");
     const profile = localStorage.getItem("admin_profile");
     if (!token || !profile) { router.push("/nexus/login"); return; }
-    JSON.parse(profile); // Just validate it parses
+    try {
+      JSON.parse(profile);
+    } catch {
+      router.push("/nexus/login");
+      return;
+    }
     fetchData(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -127,8 +130,6 @@ export default function ClaimsReportPage() {
     }
   };
 
-
-
   /* ── Derived data ── */
   const summaryByItemType = useMemo(() => {
     const map: Record<string, { sessionName: string; participants: number; staff: number }> = {};
@@ -139,8 +140,6 @@ export default function ClaimsReportPage() {
     }
     return map;
   }, [claims]);
-
-
 
   const filteredClaims = useMemo(() => {
     if (!selectedItemType) return [];
@@ -153,17 +152,17 @@ export default function ClaimsReportPage() {
       
       return {
         id: claimForSession ? claimForSession.id : Math.random(), // fake id for unclaimed
-        personId: person.id,
+        personId: person.id as string,
         itemType: selectedItemType,
         sessionName: counters.find(c => c.id === selectedItemType)?.name || selectedItemType,
         claimedAt: claimForSession ? claimForSession.claimedAt : null,
         isStaff: activeView === "staff",
-        name: person.name,
-        email: person.email,
-        role: person.role,
-        teamName: person.team_name || null,
-        teamNumber: person.team_number || null,
-        college: person.college || null,
+        name: person.name as string,
+        email: (person.email as string) || null,
+        role: (person.role as string) || "participant",
+        teamName: (person.team_name as string) || null,
+        teamNumber: (person.team_number as string) || null,
+        college: (person.college as string) || null,
       } as ClaimRecord;
     });
 
@@ -210,27 +209,46 @@ export default function ClaimsReportPage() {
     return groups;
   }, [filteredClaims, activeView]);
 
-  /* ──────────────── Render ──────────────── */
   return (
-    <div className="relative overflow-hidden flex-1 w-full bg-[#050A18] text-white font-sans" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Glow effects */}
-      <div className="absolute top-[-10%] right-[-10%] h-[300px] w-[300px] rounded-full bg-yellow-400/5 blur-[120px]" />
-      <div className="absolute bottom-[-10%] left-[-10%] h-[300px] w-[300px] rounded-full bg-yellow-400/5 blur-[120px]" />
+    <div
+      className="relative overflow-hidden flex-1 w-full text-[#F0EDE8]"
+      style={{ backgroundColor: "#111010", fontFamily: '"Space Grotesk", sans-serif' }}
+    >
+      <div className="nx-topo" />
 
-
-
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-6">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">Claims Tracker</h1>
-          <p className="mt-1 text-sm text-slate-500">Track food & item claims by counter session and team.</p>
+        <div className="pb-4" style={{ borderBottom: "1px solid #2E2C2B" }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: "0.65rem",
+                letterSpacing: "0.15em",
+                color: "#c8f135",
+                background: "rgba(200,241,53,0.1)",
+                padding: "2px 8px",
+                borderRadius: "2px",
+                border: "1px solid rgba(200,241,53,0.3)",
+              }}
+            >
+              LOGS & METRICS
+            </span>
+            <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: "0.7rem", color: "#888580" }}>{`
+              // CLAIMS AUDIT TRACKER
+            `}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#F0EDE8]">
+            Claims Audit Tracker
+          </h1>
+          <p className="text-xs text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+            Monitor kiosk fulfillment, food distributions, and verification logs in real-time.
+          </p>
         </div>
 
         {/* ── Summary Cards ── */}
-        <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-
-          {/* Per session cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {counters.map((session) => {
             const stats = summaryByItemType[session.id];
             const total = (stats?.participants ?? 0) + (stats?.staff ?? 0);
@@ -239,25 +257,47 @@ export default function ClaimsReportPage() {
               <button
                 key={session.id}
                 onClick={() => setSelectedItemType(session.id)}
-                className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200 cursor-pointer ${
-                  isSelected
-                    ? "border-yellow-500/60 bg-yellow-950/30 ring-1 ring-yellow-500/30 shadow-lg shadow-yellow-900/20"
-                    : "border-slate-800 bg-slate-900/50 hover:border-slate-600"
-                }`}
+                className="nx-card-flat text-left transition-all cursor-pointer p-4"
+                style={{
+                  borderColor: isSelected ? "#c8f135" : "#2E2C2B",
+                  backgroundColor: isSelected ? "rgba(200, 241, 53, 0.08)" : "#1A1918",
+                  boxShadow: isSelected ? "4px 4px 0px #c8f135" : "none",
+                }}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight max-w-[80%]">{session.name}</div>
-                  <span className={`h-2 w-2 rounded-full shrink-0 mt-0.5 ${session.isOpen ? "bg-emerald-400 animate-pulse" : "bg-slate-600"}`} />
+                  <div
+                    className="text-[10px] font-bold uppercase tracking-wider text-[#888580] leading-tight max-w-[80%]"
+                    style={{ fontFamily: '"JetBrains Mono", monospace' }}
+                  >
+                    {session.name}
+                  </div>
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      backgroundColor: session.isOpen ? "#c8f135" : "#888580",
+                    }}
+                    className={session.isOpen ? "animate-pulse" : ""}
+                  />
                 </div>
-                <div className="text-3xl font-black text-white">{total}</div>
-                <div className="mt-2 space-y-0.5 text-[11px] font-semibold">
+                <div
+                  className="text-3xl font-black text-[#F0EDE8]"
+                  style={{ fontFamily: '"JetBrains Mono", monospace' }}
+                >
+                  {total}
+                </div>
+                <div
+                  className="mt-2 space-y-0.5 text-[11px] font-semibold"
+                  style={{ fontFamily: '"JetBrains Mono", monospace' }}
+                >
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Participants</span>
-                    <span className="text-blue-400 font-black">{stats?.participants ?? 0} / {allParticipants.length}</span>
+                    <span className="text-[#888580]">Parts</span>
+                    <span style={{ color: "#c8f135" }}>{stats?.participants ?? 0} / {allParticipants.length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Staff</span>
-                    <span className="text-teal-400 font-black">{stats?.staff ?? 0} / {allStaff.length}</span>
+                    <span className="text-[#888580]">Staff</span>
+                    <span style={{ color: "#2dd4bf" }}>{stats?.staff ?? 0} / {allStaff.length}</span>
                   </div>
                 </div>
               </button>
@@ -266,78 +306,92 @@ export default function ClaimsReportPage() {
         </div>
 
         {/* ── Toggle Buttons ── */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/70 border border-slate-800 w-fit mb-6">
+        <div
+          className="inline-flex items-center p-1 rounded-md"
+          style={{ background: "#1A1918", border: "1px solid #2E2C2B" }}
+        >
           <button
             onClick={() => { setActiveView("participants"); }}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeView === "participants" ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:text-white"
+            className={`px-3.5 py-1.5 text-xs uppercase tracking-wider transition-all rounded cursor-pointer ${
+              activeView === "participants"
+                ? "bg-[#c8f135] text-[#111010] font-black"
+                : "text-[#888580] font-bold hover:text-[#F0EDE8] hover:bg-[#222120]"
             }`}
+            style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
-            👥 Participants
+            Participants ({allParticipants.length})
           </button>
           <button
             onClick={() => { setActiveView("staff"); }}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeView === "staff" ? "bg-teal-600 text-white shadow-md" : "text-slate-400 hover:text-white"
+            className={`px-3.5 py-1.5 text-xs uppercase tracking-wider transition-all rounded cursor-pointer ${
+              activeView === "staff"
+                ? "bg-[#c8f135] text-[#111010] font-black"
+                : "text-[#888580] font-bold hover:text-[#F0EDE8] hover:bg-[#222120]"
             }`}
+            style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
-            🎓 Faculty & Volunteers
+            Faculty & Volunteers ({allStaff.length})
           </button>
         </div>
 
         {/* ── Filters Bar ── */}
-        <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row gap-3">
+        <div className="nx-card-flat p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3 items-end">
             {/* Search */}
             <div className="relative flex-1">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Search Name / Email</label>
-              <svg className="absolute left-3 top-[32px] h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <label className="block text-[10px] font-bold text-[#888580] uppercase mb-1.5" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                Search Name / Email
+              </label>
               <input
                 type="text"
                 placeholder="Search name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-800/60 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition-colors"
+                className="nx-input"
               />
             </div>
 
             {/* Status Filter */}
-            <div className="w-full sm:w-40 shrink-0">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Claim Status</label>
-              <select
+            <div className="w-full sm:w-44 shrink-0">
+              <label className="block text-[10px] font-bold text-[#888580] uppercase mb-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                Claim Status
+              </label>
+              <NexusSelect
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-400 transition-colors cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900 text-white">All statuses</option>
-                <option value="claimed" className="bg-slate-900 text-white">Claimed</option>
-                <option value="unclaimed" className="bg-slate-900 text-white">Unclaimed</option>
-              </select>
+                onChange={setStatusFilter}
+                options={[
+                  { value: "all", label: "All Statuses" },
+                  { value: "claimed", label: "Claimed" },
+                  { value: "unclaimed", label: "Unclaimed" },
+                ]}
+              />
             </div>
 
             {/* Participants View Specific Filters */}
             {activeView === "participants" && (
               <>
                 <div className="w-full sm:w-48 shrink-0">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Team Name</label>
+                  <label className="block text-[10px] font-bold text-[#888580] uppercase mb-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                    Team Name
+                  </label>
                   <input
                     type="text"
                     placeholder="Filter team name..."
                     value={teamNameFilter}
                     onChange={(e) => setTeamNameFilter(e.target.value)}
-                    className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition-colors"
+                    className="nx-input"
                   />
                 </div>
                 <div className="w-full sm:w-32 shrink-0">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Team No.</label>
+                  <label className="block text-[10px] font-bold text-[#888580] uppercase mb-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                    Team No.
+                  </label>
                   <input
                     type="text"
                     placeholder="Team no..."
                     value={teamNumberFilter}
                     onChange={(e) => setTeamNumberFilter(e.target.value)}
-                    className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition-colors"
+                    className="nx-input"
                   />
                 </div>
               </>
@@ -346,32 +400,35 @@ export default function ClaimsReportPage() {
             {/* Staff View Specific Filters */}
             {activeView === "staff" && (
               <div className="w-full sm:w-48 shrink-0">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Role Type</label>
-                <select
+                <label className="block text-[10px] font-bold text-[#888580] uppercase mb-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                  Role Type
+                </label>
+                <NexusSelect
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-400 transition-colors cursor-pointer"
-                >
-                  <option value="all" className="bg-slate-900 text-white">All Roles</option>
-                  <option value="hod" className="bg-slate-900 text-white">HODs</option>
-                  <option value="faculty" className="bg-slate-900 text-white">Faculty</option>
-                  <option value="volunteer" className="bg-slate-900 text-white">Volunteers</option>
-                </select>
+                  onChange={setRoleFilter}
+                  options={[
+                    { value: "all", label: "All Roles" },
+                    { value: "hod", label: "HODs" },
+                    { value: "faculty", label: "Faculty" },
+                    { value: "volunteer", label: "Volunteers" },
+                  ]}
+                />
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-xs text-slate-500">
-              Showing <span className="font-bold text-white">{filteredClaims.length}</span> {activeView === "staff" ? "staff" : "participant"} claim{filteredClaims.length !== 1 ? "s" : ""}
+          <div className="flex items-center justify-between pt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+            <span className="text-xs text-[#888580]">
+              Showing <span className="font-bold text-[#F0EDE8]">{filteredClaims.length}</span> {activeView === "staff" ? "staff" : "participant"} record{filteredClaims.length !== 1 ? "s" : ""}
               {selectedItemType && (
-                <span className="ml-1">for <span className="text-yellow-400 font-semibold">{summaryByItemType[selectedItemType]?.sessionName ?? selectedItemType}</span></span>
+                <span className="ml-1">for <span style={{ color: "#c8f135" }} className="font-bold">{summaryByItemType[selectedItemType]?.sessionName ?? selectedItemType}</span></span>
               )}
             </span>
             {(searchQuery || teamNameFilter || teamNumberFilter || roleFilter !== "all" || statusFilter !== "all") && (
               <button
                 onClick={() => { setSearchQuery(""); setTeamNameFilter(""); setTeamNumberFilter(""); setRoleFilter("all"); setStatusFilter("all"); }}
-                className="text-[11px] text-yellow-400 hover:text-yellow-300 font-semibold transition-colors"
+                className="text-xs hover:underline cursor-pointer"
+                style={{ color: "#c8f135" }}
               >
                 Clear Filters ✕
               </button>
@@ -381,22 +438,38 @@ export default function ClaimsReportPage() {
 
         {/* ── Error / Loading ── */}
         {error && (
-          <div className="mb-6 rounded-xl bg-red-950/40 border border-red-500/30 px-4 py-3 text-sm text-red-400">{error}</div>
+          <div
+            className="p-4 text-xs font-bold"
+            style={{
+              background: "rgba(255, 45, 111, 0.1)",
+              border: "1px solid rgba(255, 45, 111, 0.3)",
+              borderRadius: "4px",
+              color: "#ff2d6f",
+              fontFamily: '"JetBrains Mono", monospace',
+            }}
+          >
+            {error}
+          </div>
         )}
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="h-9 w-9 animate-spin rounded-full border-4 border-yellow-400 border-t-transparent" />
-            <span className="text-slate-500 text-sm">Loading claims...</span>
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-[#888580]">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+              style={{ borderColor: "#c8f135", borderTopColor: "transparent" }}
+            />
+            <span className="text-xs" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+              Loading audit logs...
+            </span>
           </div>
         ) : filteredClaims.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <svg className="h-12 w-12 text-slate-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="nx-card-flat flex flex-col items-center justify-center py-24 text-center">
+            <svg className="h-12 w-12 text-[#888580] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <h3 className="text-slate-400 font-semibold">No claims found</h3>
-            <p className="text-slate-600 text-sm mt-1">
-              No claims found for the active filters.
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[#F0EDE8]">No Claim Records</h3>
+            <p className="text-xs text-[#888580] mt-1" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+              No claims match the active filter criteria.
             </p>
           </div>
         ) : (
@@ -406,61 +479,84 @@ export default function ClaimsReportPage() {
               Object.entries(grouped)
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([teamLabel, members]) => (
-                  <div key={teamLabel} className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+                  <div
+                    key={teamLabel}
+                    className="overflow-hidden rounded"
+                    style={{ border: "1px solid #2E2C2B", background: "#1A1918" }}
+                  >
                     {/* Team Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/70 bg-slate-900/60">
+                    <div
+                      className="flex items-center justify-between px-4 py-3"
+                      style={{ borderBottom: "1px solid #2E2C2B", background: "#222120" }}
+                    >
                       <div className="flex items-center gap-2.5">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-yellow-500/15 border border-yellow-500/30 text-xs font-black text-yellow-400">
+                        <span
+                          style={{
+                            fontFamily: '"JetBrains Mono", monospace',
+                            background: "rgba(200, 241, 53, 0.12)",
+                            border: "1px solid rgba(200, 241, 53, 0.3)",
+                            color: "#c8f135",
+                            padding: "2px 8px",
+                            borderRadius: "2px",
+                            fontSize: "0.75rem",
+                            fontWeight: 800,
+                          }}
+                        >
                           {members[0]?.teamNumber ? members[0].teamNumber : "—"}
                         </span>
-                        <span className="font-extrabold text-white text-sm">{teamLabel}</span>
+                        <span className="font-black text-[#F0EDE8] text-sm uppercase tracking-tight">
+                          {teamLabel}
+                        </span>
                       </div>
-                      <span className="text-[11px] font-bold bg-slate-800 px-2.5 py-1 rounded-full text-emerald-400">
+                      <span
+                        className="nx-badge nx-badge-lime"
+                        style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: "0.7rem" }}
+                      >
                         {members.filter(m => m.claimedAt !== null).length} / {members.length} claimed
                       </span>
                     </div>
 
                     {/* Members Table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="nx-table-container">
+                      <table className="nx-table" style={{ minWidth: "750px" }}>
                         <thead>
-                          <tr className="border-b border-slate-800/50 bg-slate-950/30">
-                            <th className="text-left px-4 py-2 text-slate-500 font-semibold w-12">#</th>
-                            <th className="text-left px-4 py-2 text-slate-500 font-semibold w-[30%]">Name</th>
-                            <th className="text-left px-4 py-2 text-slate-500 font-semibold hidden sm:table-cell w-[35%]">Email</th>
-                            <th className="text-left px-4 py-2 text-slate-500 font-semibold w-32">Status</th>
-                            
-                            <th className="text-right px-4 py-2 text-slate-500 font-semibold">Claimed At</th>
+                          <tr>
+                            <th style={{ width: "50px" }}>#</th>
+                            <th style={{ width: "35%" }}>Attendee</th>
+                            <th style={{ width: "35%" }}>Email</th>
+                            <th style={{ width: "15%" }}>Status</th>
+                            <th style={{ width: "15%", textAlign: "right" }}>Claimed At</th>
                           </tr>
                         </thead>
                         <tbody>
                           {members.map((member, i) => (
-                            <tr key={member.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors">
-                              <td className="px-4 py-2.5 text-slate-600 font-mono">{i + 1}</td>
-                              <td className="px-4 py-2.5 font-semibold text-white">{member.name}</td>
-                              <td className="px-4 py-2.5 text-slate-400 hidden sm:table-cell font-mono text-[11px]">{member.email || "—"}</td>
-                              <td className="px-4 py-2.5 text-left">
+                            <tr key={member.id}>
+                              <td className="text-[#888580] font-mono">{i + 1}</td>
+                              <td>
+                                <span className="font-bold text-[#F0EDE8]">{member.name}</span>
+                              </td>
+                              <td>
+                                <span className="text-[#888580] font-mono text-[11px]">{member.email || "—"}</span>
+                              </td>
+                              <td>
                                 {member.claimedAt ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                  <span className="nx-badge nx-badge-lime">
                                     Claimed
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  <span className="nx-badge nx-badge-gray">
                                     Unclaimed
                                   </span>
                                 )}
                               </td>
-
-                              <td className="px-4 py-2.5 text-right">
+                              <td className="text-right font-mono">
                                 {member.claimedAt ? (
-                                  <>
-                                    <span className="font-semibold text-white">{formatTime(member.claimedAt)}</span>
-                                    <span className="ml-1.5 text-[10px] text-slate-500">{formatDate(member.claimedAt)}</span>
-                                  </>
+                                  <div className="flex flex-col items-end">
+                                    <span className="font-bold text-[#F0EDE8]">{formatTime(member.claimedAt)}</span>
+                                    <span className="text-[10px] text-[#888580]">{formatDate(member.claimedAt)}</span>
+                                  </div>
                                 ) : (
-                                  <span className="text-slate-600 font-mono text-[10px]">--:--</span>
+                                  <span className="text-[#888580] text-[10px]">--:--</span>
                                 )}
                               </td>
                             </tr>
@@ -472,63 +568,86 @@ export default function ClaimsReportPage() {
                 ))
             ) : (
               // ── Staff flat view ──
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/70 bg-slate-900/60">
-                  <span className="font-extrabold text-white text-sm">Faculty & Volunteer Claims</span>
-                  <span className="text-[11px] font-bold text-teal-400 bg-slate-800 px-2.5 py-1 rounded-full">
+              <div
+                className="overflow-hidden rounded"
+                style={{ border: "1px solid #2E2C2B", background: "#1A1918" }}
+              >
+                <div
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{ borderBottom: "1px solid #2E2C2B", background: "#222120" }}
+                >
+                  <span className="font-black text-[#F0EDE8] text-sm uppercase tracking-tight">
+                    Faculty & Volunteer Claims
+                  </span>
+                  <span className="nx-badge nx-badge-lime" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
                     {filteredClaims.filter(m => m.claimedAt !== null).length} / {filteredClaims.length} claimed
                   </span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                <div className="nx-table-container">
+                  <table className="nx-table" style={{ minWidth: "850px" }}>
                     <thead>
-                      <tr className="border-b border-slate-800/50 bg-slate-950/30">
-                        <th className="text-left px-4 py-2 text-slate-500 font-semibold w-12">#</th>
-                        <th className="text-left px-4 py-2 text-slate-500 font-semibold w-1/4">Name</th>
-                        <th className="text-left px-4 py-2 text-slate-500 font-semibold hidden sm:table-cell w-1/4">Email</th>
-                        <th className="text-left px-4 py-2 text-slate-500 font-semibold w-24">Role</th>
-                        <th className="text-left px-4 py-2 text-slate-500 font-semibold w-32">Status</th>
-                        
-                        <th className="text-right px-4 py-2 text-slate-500 font-semibold">Claimed At</th>
+                      <tr>
+                        <th style={{ width: "50px" }}>#</th>
+                        <th style={{ width: "25%" }}>Name</th>
+                        <th style={{ width: "30%" }}>Email</th>
+                        <th style={{ width: "15%" }}>Role</th>
+                        <th style={{ width: "15%" }}>Status</th>
+                        <th style={{ width: "15%", textAlign: "right" }}>Claimed At</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredClaims.map((member, i) => (
-                        <tr key={member.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors">
-                          <td className="px-4 py-2.5 text-slate-600 font-mono">{i + 1}</td>
-                          <td className="px-4 py-2.5 font-semibold text-white">{member.name}</td>
-                          <td className="px-4 py-2.5 text-slate-400 hidden sm:table-cell font-mono text-[11px]">{member.email || "—"}</td>
-                          <td className="px-4 py-2.5">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border ${roleColor(member.role)}`}>
-                              {member.role}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-left">
-                            {member.claimedAt ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                Claimed
+                      {filteredClaims.map((member, i) => {
+                        const rb = roleBadgeStyle(member.role);
+                        return (
+                          <tr key={member.id}>
+                            <td className="text-[#888580] font-mono">{i + 1}</td>
+                            <td>
+                              <span className="font-bold text-[#F0EDE8]">{member.name}</span>
+                            </td>
+                            <td>
+                              <span className="text-[#888580] font-mono text-[11px]">{member.email || "—"}</span>
+                            </td>
+                            <td>
+                              <span
+                                style={{
+                                  background: rb.bg,
+                                  color: rb.color,
+                                  border: `1px solid ${rb.border}`,
+                                  padding: "2px 8px",
+                                  borderRadius: "2px",
+                                  fontSize: "0.65rem",
+                                  fontWeight: 700,
+                                  textTransform: "uppercase",
+                                  fontFamily: '"JetBrains Mono", monospace',
+                                }}
+                              >
+                                {member.role}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                Unclaimed
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="px-4 py-2.5 text-right">
-                            {member.claimedAt ? (
-                              <>
-                                <span className="font-semibold text-white">{formatTime(member.claimedAt)}</span>
-                                <span className="ml-1.5 text-[10px] text-slate-500">{formatDate(member.claimedAt)}</span>
-                              </>
-                            ) : (
-                              <span className="text-slate-600 font-mono text-[10px]">--:--</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td>
+                              {member.claimedAt ? (
+                                <span className="nx-badge nx-badge-lime">
+                                  Claimed
+                                </span>
+                              ) : (
+                                <span className="nx-badge nx-badge-gray">
+                                  Unclaimed
+                                </span>
+                              )}
+                            </td>
+                            <td className="text-right font-mono">
+                              {member.claimedAt ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="font-bold text-[#F0EDE8]">{formatTime(member.claimedAt)}</span>
+                                  <span className="text-[10px] text-[#888580]">{formatDate(member.claimedAt)}</span>
+                                </div>
+                              ) : (
+                                <span className="text-[#888580] text-[10px]">--:--</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
