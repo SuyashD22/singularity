@@ -304,7 +304,10 @@ export default function ScannerPage() {
       const API_BASE = getApiBaseUrl();
       const res = await fetch(`${API_BASE}/api/claims`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("admin_token")}`
+        },
         body: JSON.stringify({
           token: decodedText,
           itemType: selectedCounter

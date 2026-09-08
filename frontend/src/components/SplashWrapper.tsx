@@ -5,6 +5,7 @@ import CountDown, { TOTAL_COUNTDOWN_DURATION_MS } from "@/components/CountDown/C
 import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import Navbar from "@/components/Navbar/Navbar";
 import { getApiBaseUrl, fetchCountdownState, CountdownState } from "@/lib/api";
+import { soundManager } from "@/lib/audio";
 
 export default function SplashWrapper({
   children,
@@ -104,6 +105,9 @@ export default function SplashWrapper({
   }, [hasLoadedState, showCountdown, showSplash]);
 
   useEffect(() => {
+    // Arm cross-device audio unlock listeners on initial website load
+    soundManager.initGlobalListeners();
+
     // Ensure we start at the top on reload
     if (typeof window !== "undefined") {
       if ("scrollRestoration" in window.history) {

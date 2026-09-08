@@ -1,0 +1,168 @@
+.container {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #000000;
+  color: #F0EDE8;
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: clamp(1.2rem, 3vw, 2.5rem) clamp(1.5rem, 4vw, 3rem);
+  overflow: hidden;
+  user-select: none;
+  isolation: isolate;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Subtle scanlines overlay */
+.scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  z-index: 2;
+}
+
+/* Vignette */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.85) 100%);
+  z-index: 2;
+}
+
+/* Header & Footer matching identical muted text style */
+.header,
+.footer {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: clamp(0.68rem, 1.2vw, 0.75rem);
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+
+.footer {
+  justify-content: center;
+}
+
+/* Center Content Area */
+.centerContent {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 960px;
+  width: 100%;
+  margin: auto 0;
+  padding: 1rem;
+}
+
+/* Initial "ARE YOU READY?" Heading */
+.readyHeading {
+  font-size: clamp(2.4rem, 7vw, 4.8rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #ffffff;
+  line-height: 1.05;
+  margin: 0 0 1.5rem 0;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+}
+
+/* Teaser Text Display Area */
+.teaserWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  margin-bottom: 1.75rem;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.teaserVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.teaserHidden {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.teaserText {
+  font-size: clamp(1.8rem, 5vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+  line-height: 1.15;
+  margin: 0;
+  max-width: 880px;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+}
+
+/* Touch to interact styled identically to the third image text */
+.touchHint {
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: clamp(0.7rem, 1.2vw, 0.78rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transition: color 0.2s ease;
+}
+
+.touchHint:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Subtle tap ripple */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: rippleAnim 0.55s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes rippleAnim {
+  0% {
+    width: 0px;
+    height: 0px;
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  100% {
+    width: 240px;
+    height: 240px;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
