@@ -258,6 +258,98 @@ class SoundManager {
       return false;
     }
   }
+  /**
+   * Pre-schedule all countdown beeps precisely onto the AudioContext hardware timeline.
+   * Eliminates JS event loop jitter and network lag. Handles late joiners by discarding
+   * timestamps that have already passed relative to the synchronized epoch.
+   * 
+   * @param targetEpochMs The exact synchronized server epoch timestamp when sequence starts
+   * @param scheduleOffsets Array of offsets in MS relative to the start of the sequence
+   * @param serverClockOffset The calculated NTP sync offset
+   */
+  public async preScheduleCountdownBeeps(targetEpochMs: number, scheduleOffsets: number[], serverClockOffset: number): Promise<boolean> {
+    const ctx = this.getContext();
+    if (!ctx) return false;
+
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+    } catch {
+      return false;
+    }
+
+    if (ctx.state !== 'running') return false;
+
+    // To schedule precisely, we need to map a future server epoch to ctx.currentTime
+    // ctx.currentTime is completely relative to when AudioContext started.
+    // 
+    // Equation:
+    // estimatedServerNow = Date.now() + serverClockOffset
+    // targetTimeDelta = targetEpochMs - estimatedServerNow
+    // targetAudioCtxTime = ctx.currentTime + (targetTimeDelta / 1000)
+    
+    const estimatedServerNow = Date.now() + serverClockOffset;
+    const targetTimeDeltaSec = (targetEpochMs - estimatedServerNow) / 1000;
+    const targetAudioCtxTime = ctx.currentTime + targetTimeDeltaSec;
+
+    for (let i = 0; i < scheduleOffsets.length; i++) {
+      const offsetSec = scheduleOffsets[i] / 1000;
+      const scheduledStart = targetAudioCtxTime + offsetSec;
+      
+      // Late joiner check: if this beep's absolute time has passed, skip it.
+      if (scheduledStart < ctx.currentTime) {
+        continue;
+      }
+      
+      const durSec = 0.15; // 150ms beep
+      const freq = 800;
+      
+      try {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, scheduledStart);
+
+        const harm = ctx.createOscillator();
+        harm.type = 'triangle';
+        harm.frequency.setValueAtTime(freq, scheduledStart);
+
+        const preGain = ctx.createGain();
+        preGain.gain.setValueAtTime(2.0, scheduledStart);
+
+        const shaper = ctx.createWaveShaper();
+        const curve = new Float32Array(1024);
+        for (let j = 0; j < 1024; j++) {
+          const x = (j * 2) / 1024 - 1;
+          curve[j] = Math.tanh(x * 3.5);
+        }
+        shaper.curve = curve;
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0, Math.max(0, scheduledStart - 0.001)); // init quiet
+        masterGain.gain.setValueAtTime(1.0, scheduledStart);
+        masterGain.gain.setValueAtTime(1.0, scheduledStart + durSec - 0.015);
+        masterGain.gain.linearRampToValueAtTime(0, scheduledStart + durSec);
+
+        osc.connect(preGain);
+        harm.connect(preGain);
+        preGain.connect(shaper);
+        shaper.connect(masterGain);
+        masterGain.connect(ctx.destination);
+
+        osc.start(scheduledStart);
+        harm.start(scheduledStart);
+        osc.stop(scheduledStart + durSec + 0.01);
+        harm.stop(scheduledStart + durSec + 0.01);
+      } catch (err) {
+        console.warn(`[Audio] Failed to schedule beep ${i}:`, err);
+      }
+    }
+
+    this.isUnlocked = true;
+    this.notifyListeners();
+    return true;
+  }
 }
 
 export const soundManager = new SoundManager();

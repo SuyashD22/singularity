@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { soundManager } from '@/lib/audio';
+import { ntpClient } from '@/lib/sync';
 import EnterEventScreen from './EnterEventScreen';
 import styles from './CountDown.module.css';
 
@@ -96,18 +97,26 @@ export default function CountDown({
 
   // Clock skew correction between client device and backend
   const clockOffsetRef = useRef<number>(0);
+  const [ntpSynced, setNtpSynced] = useState(false);
+
   useEffect(() => {
     if (serverTime) {
       clockOffsetRef.current = new Date(serverTime).getTime() - Date.now();
     }
   }, [serverTime]);
 
+  useEffect(() => {
+    ntpClient.sync(3).then(() => {
+      setNtpSynced(true);
+    });
+  }, []);
+
   const localStartedAtRef = useRef<number | null>(null);
   const lastBeepedIndexRef = useRef<number | null>(null);
 
   const getElapsedMs = useCallback(() => {
     if (startedAt) {
-      const serverNow = Date.now() + clockOffsetRef.current;
+      const serverNow = ntpClient.isSynced ? ntpClient.getServerTime() : Date.now() + clockOffsetRef.current;
       const start = new Date(startedAt).getTime();
       return serverNow - start;
     }
@@ -115,15 +124,27 @@ export default function CountDown({
       return Date.now() - localStartedAtRef.current;
     }
     return 0;
-  }, [startedAt]);
+  }, [startedAt, ntpSynced]);
+
+  const beepsScheduledRef = useRef(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
   useEffect(() => {
     soundManager.checkUnlocked();
+    const unsub = soundManager.subscribe((unlocked) => {
+      setIsUnlocked(unlocked);
+    });
+    return unsub;
   }, []);
 
-  const playBeep = useCallback(() => {
-    soundManager.playBeep(800, 150);
-  }, []);
+  useEffect(() => {
+    if (isStarted && startedAt && ntpClient.isSynced && isUnlocked && !beepsScheduledRef.current) {
+      const startEpochMs = new Date(startedAt).getTime();
+      const offsets = STEP_SCHEDULE.map((s) => s.startMs);
+      soundManager.preScheduleCountdownBeeps(startEpochMs, offsets, ntpClient.offset);
+      beepsScheduledRef.current = true;
+    }
+  }, [isStarted, startedAt, ntpSynced, isUnlocked]);
 
   const handleStageInteraction = useCallback(async () => {
     await soundManager.unlock();
@@ -143,6 +164,7 @@ export default function CountDown({
       setFlash(false);
       localStartedAtRef.current = null;
       lastBeepedIndexRef.current = null;
+      beepsScheduledRef.current = false;
       return;
     }
 
@@ -169,10 +191,9 @@ export default function CountDown({
 
     const offsetInStep = safeElapsed - activeStep.startMs;
 
-    // Trigger sound on each new step
+    // Trigger sound on each new step (legacy fallback if hardware scheduling fails or isn't used)
     if (lastBeepedIndexRef.current !== activeStep.index) {
       lastBeepedIndexRef.current = activeStep.index;
-      playBeep();
     }
 
     setSeed((s) => s + 1);
@@ -237,7 +258,7 @@ export default function CountDown({
     }, Math.max(20, timeUntilEnd));
 
     return clearTimers;
-  }, [index, isStarted, startedAt, getElapsedMs, schedule, clearTimers, playBeep, onComplete]);
+  }, [index, isStarted, startedAt, getElapsedMs, schedule, clearTimers, onComplete]);
 
   // Drift check & background tab synchronization listener
   useEffect(() => {

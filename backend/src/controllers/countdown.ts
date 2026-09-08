@@ -114,20 +114,20 @@ export async function triggerCountdownStart(req: Request, res: Response, next: N
       return;
     }
 
-    const now = new Date();
+    const targetTime = new Date(Date.now() + 2000); // 2 seconds in the future
     let updated: any;
     try {
       updated = await (prisma as any).countdownState.update({
         where: { id: 'default' },
         data: {
           isStarted: true,
-          startedAt: now
+          startedAt: targetTime
         }
       });
     } catch {
       await prisma.$executeRawUnsafe(`
         UPDATE countdown_state
-        SET is_started = 1, started_at = '${now.toISOString()}', updated_at = CURRENT_TIMESTAMP
+        SET is_started = 1, started_at = '${targetTime.toISOString()}', updated_at = CURRENT_TIMESTAMP
         WHERE id = 'default'
       `);
       updated = await getOrCreateState();
@@ -136,6 +136,34 @@ export async function triggerCountdownStart(req: Request, res: Response, next: N
     const formatted = formatCountdownState(updated);
     broadcastCountdownUpdate(formatted);
     res.json({ success: true, message: "Countdown started", state: formatted });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/countdown/sync
+ * Public endpoint for NTP-style client-server clock synchronization.
+ * The client sends its timestamp 't0'. The server replies with 't0',
+ * the time it received the request 't1', and the time it sends the response 't2'.
+ */
+export async function syncCountdown(req: Request, res: Response, next: NextFunction) {
+  try {
+    const t1 = Date.now();
+    const { t0 } = req.body;
+    
+    if (typeof t0 !== 'number') {
+      res.status(400).json({ error: 'Missing or invalid client timestamp t0' });
+      return;
+    }
+
+    // Send response immediately to minimize processing latency
+    const t2 = Date.now();
+    res.json({
+      t0,
+      t1,
+      t2
+    });
   } catch (err) {
     next(err);
   }
