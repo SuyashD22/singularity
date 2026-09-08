@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import CountDown, { TOTAL_COUNTDOWN_DURATION_MS } from "@/components/CountDown/CountDown";
 import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import { getApiBaseUrl, fetchCountdownState, CountdownState } from "@/lib/api";
-import { soundManager } from "@/lib/audio";
+import { hapticsManager } from "@/lib/haptics";
 
 export default function PublicCountdownPage() {
   const router = useRouter();
@@ -20,9 +20,9 @@ export default function PublicCountdownPage() {
   const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
 
   useEffect(() => {
-    soundManager.initGlobalListeners();
-    setIsAudioUnlocked(soundManager.checkUnlocked());
-    const unsub = soundManager.subscribe((unlocked) => {
+    hapticsManager.initGlobalListeners();
+    setIsAudioUnlocked(hapticsManager.checkUnlocked());
+    const unsub = hapticsManager.subscribe((unlocked) => {
       setIsAudioUnlocked(unlocked);
     });
     return unsub;
@@ -124,7 +124,7 @@ export default function PublicCountdownPage() {
   }
 
   const handleStandbyAudioUnlock = async () => {
-    await soundManager.unlock();
+    await hapticsManager.unlock();
   };
 
   // When NOT displayed: Standby screen (countdown animation is hidden)

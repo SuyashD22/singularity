@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { soundManager } from '@/lib/audio';
+import { hapticsManager } from '@/lib/haptics';
 import styles from './EnterEventScreen.module.css';
 
 const TEASER_TEXTS = [
@@ -93,7 +93,7 @@ export default function EnterEventScreen({ onEnter }: EnterEventScreenProps) {
 
       // Silently unlock sound hardware on user gesture (NO audio chime played on tap)
       try {
-        soundManager.unlock();
+        hapticsManager.unlock();
       } catch {
         // Proceed gracefully if browser blocks audio
       }
