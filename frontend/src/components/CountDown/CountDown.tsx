@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { soundManager } from '@/lib/audio';
+import EnterEventScreen from './EnterEventScreen';
 import styles from './CountDown.module.css';
 
 export const SEQUENCE = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'] as const;
@@ -115,70 +117,17 @@ export default function CountDown({
     return 0;
   }, [startedAt]);
 
-  // ── Audio: Web Audio API beep (MAXIMUM FULL CAPACITY) ────────────────────
-  // Driven to 0 dBFS true peak with high RMS saturation — absolute maximum digital volume.
-  const BEEP_HZ   = 800;   // original 800Hz tone
-  const BEEP_MS   = 150;   // 150ms duration
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  useEffect(() => {
+    soundManager.checkUnlocked();
+  }, []);
 
   const playBeep = useCallback(() => {
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext();
-      }
-      const ctx = audioCtxRef.current;
-
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      const now = ctx.currentTime;
-      const durSec = BEEP_MS / 1000;
-
-      // Primary 800 Hz oscillator
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(BEEP_HZ, now);
-
-      // Harmonic presence oscillator
-      const harm = ctx.createOscillator();
-      harm.type = 'triangle';
-      harm.frequency.setValueAtTime(BEEP_HZ, now);
-
-      // Pre-gain: drives the saturator to 100% capacity
-      const preGain = ctx.createGain();
-      preGain.gain.setValueAtTime(2.0, now);
-
-      // Tanh Waveshaper: pushes every wave cycle right to the ±1.0 digital ceiling
-      const shaper = ctx.createWaveShaper();
-      const curve = new Float32Array(1024);
-      for (let i = 0; i < 1024; i++) {
-        const x = (i * 2) / 1024 - 1;
-        curve[i] = Math.tanh(x * 3.5);
-      }
-      shaper.curve = curve;
-
-      // Master Envelope at full 1.0 scale
-      const masterGain = ctx.createGain();
-      masterGain.gain.setValueAtTime(1.0, now);
-      masterGain.gain.setValueAtTime(1.0, now + durSec - 0.015);
-      masterGain.gain.linearRampToValueAtTime(0, now + durSec);
-
-      osc.connect(preGain);
-      harm.connect(preGain);
-      preGain.connect(shaper);
-      shaper.connect(masterGain);
-      masterGain.connect(ctx.destination);
-
-      osc.start(now);
-      harm.start(now);
-      osc.stop(now + durSec + 0.01);
-      harm.stop(now + durSec + 0.01);
-    } catch {
-      // Audio context might be restricted if autoplay without interaction
-    }
+    soundManager.playBeep(800, 150);
   }, []);
-  // ──────────────────────────────────────────────────────────────────────────
+
+  const handleStageInteraction = useCallback(async () => {
+    await soundManager.unlock();
+  }, []);
 
   const current = SEQUENCE[index];
   const isLast = index === SEQUENCE.length - 1;
@@ -321,8 +270,27 @@ export default function CountDown({
     };
   }, [isStarted, getElapsedMs, index, onComplete]);
 
+  // While countdown is NOT started, show the interactive teaser text interface ("ARE YOU READY?").
+  // Once the countdown is started (isStarted === true), this text interface is NEVER shown again,
+  // and refreshing the screen seamlessly continues the synchronized countdown.
+  if (!isStarted) {
+    return (
+      <EnterEventScreen
+        onEnter={() => {}}
+        isStarted={isStarted}
+      />
+    );
+  }
+
   return (
-    <div className={`${styles.stage} ${shake ? styles.shake : ''}`} id="countdown-stage">
+    <div 
+      className={`${styles.stage} ${shake ? styles.shake : ''}`} 
+      id="countdown-stage"
+      onClick={handleStageInteraction}
+      onTouchStart={handleStageInteraction}
+      role="region"
+      aria-label="Launch Countdown Stage"
+    >
       <div className={styles.scanlines} aria-hidden />
       <div className={styles.vignette} aria-hidden />
 

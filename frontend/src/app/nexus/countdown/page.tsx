@@ -500,7 +500,7 @@ export default function NexusCountdownPage() {
               <strong className="text-[#F0EDE8]">Stage Screens</strong>: Open <code className="text-[#c8f135] bg-[#222120] px-1 py-0.5 rounded font-mono">/countdown</code> on auditoriums/kiosks.
             </li>
             <li>
-              <strong className="text-[#F0EDE8]">Display</strong>: Arms the screen in standby mode (static 10 with audio ready).
+              <strong className="text-[#F0EDE8]">Display</strong>: Broadcasts the interactive &quot;ARE YOU READY?&quot; teaser interface to all visitors. When touched, cycles 25 random messages and primes device audio.
             </li>
             <li>
               <strong className="text-[#F0EDE8]">Start</strong>: Initiates the 10-second synchronized live descent.
