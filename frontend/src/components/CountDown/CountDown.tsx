@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { soundManager } from '@/lib/audio';
+import { hapticsManager } from '@/lib/haptics';
 import { ntpClient } from '@/lib/sync';
 import EnterEventScreen from './EnterEventScreen';
 import styles from './CountDown.module.css';
@@ -130,8 +130,8 @@ export default function CountDown({
   const [isUnlocked, setIsUnlocked] = useState(false);
 
   useEffect(() => {
-    soundManager.checkUnlocked();
-    const unsub = soundManager.subscribe((unlocked) => {
+    hapticsManager.checkUnlocked();
+    const unsub = hapticsManager.subscribe((unlocked) => {
       setIsUnlocked(unlocked);
     });
     return unsub;
@@ -140,14 +140,17 @@ export default function CountDown({
   useEffect(() => {
     if (isStarted && startedAt && ntpClient.isSynced && isUnlocked && !beepsScheduledRef.current) {
       const startEpochMs = new Date(startedAt).getTime();
-      const offsets = STEP_SCHEDULE.map((s) => s.startMs);
-      soundManager.preScheduleCountdownBeeps(startEpochMs, offsets, ntpClient.offset);
+      const schedulePayload = STEP_SCHEDULE.map((s) => ({
+        offsetMs: s.startMs,
+        isGlitch: s.isGlitch,
+      }));
+      hapticsManager.preScheduleCountdownBeeps(startEpochMs, schedulePayload, ntpClient.offset);
       beepsScheduledRef.current = true;
     }
   }, [isStarted, startedAt, ntpSynced, isUnlocked]);
 
   const handleStageInteraction = useCallback(async () => {
-    await soundManager.unlock();
+    await hapticsManager.unlock();
   }, []);
 
   const current = SEQUENCE[index];
