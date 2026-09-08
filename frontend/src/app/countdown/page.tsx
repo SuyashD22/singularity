@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CountDown, { TOTAL_COUNTDOWN_DURATION_MS } from "@/components/CountDown/CountDown";
 import SplashScreen from "@/components/SplashScreen/SplashScreen";
 import { getApiBaseUrl, fetchCountdownState, CountdownState } from "@/lib/api";
+import { soundManager } from "@/lib/audio";
 
 export default function PublicCountdownPage() {
   const router = useRouter();
@@ -16,6 +17,16 @@ export default function PublicCountdownPage() {
   });
   const [hasCompleted, setHasCompleted] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+
+  useEffect(() => {
+    soundManager.initGlobalListeners();
+    setIsAudioUnlocked(soundManager.checkUnlocked());
+    const unsub = soundManager.subscribe((unlocked) => {
+      setIsAudioUnlocked(unlocked);
+    });
+    return unsub;
+  }, []);
 
   // Sync state via initial fetch and SSE stream
   useEffect(() => {
@@ -112,10 +123,17 @@ export default function PublicCountdownPage() {
     );
   }
 
+  const handleStandbyAudioUnlock = async () => {
+    await soundManager.unlock();
+  };
+
   // When NOT displayed: Standby screen (countdown animation is hidden)
   if (!state.isDisplayed) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-black px-4 font-mono text-slate-300 select-none">
+      <div 
+        onClick={handleStandbyAudioUnlock}
+        className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-black px-4 font-mono text-slate-300 select-none cursor-pointer"
+      >
         {/* Ambient background glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full bg-yellow-400/5 blur-[120px]" />
 
@@ -138,13 +156,29 @@ export default function PublicCountdownPage() {
             Singularity <span className="text-yellow-400">&apos;26</span>
           </h1>
 
-          <div className="p-4 rounded-xl border border-slate-800/80 bg-slate-950/60 text-xs text-slate-400 space-y-2">
+          <div className="p-4 rounded-xl border border-slate-800/80 bg-slate-950/60 text-xs text-slate-400 space-y-3">
             <p className="tracking-wider text-yellow-400/90 font-bold">
               [ AWAITING LAUNCH BROADCAST SIGNAL ]
             </p>
             <p className="text-slate-500 text-[11px]">
               System link is active. Stage control sequence will attach automatically upon admin initialization.
             </p>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStandbyAudioUnlock();
+              }}
+              className="w-full py-2 px-3 rounded-md font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+              style={{
+                background: isAudioUnlocked ? "rgba(200, 241, 53, 0.12)" : "rgba(255, 45, 111, 0.12)",
+                border: `1.5px solid ${isAudioUnlocked ? "#c8f135" : "#ff2d6f"}`,
+                color: isAudioUnlocked ? "#c8f135" : "#ff2d6f",
+              }}
+            >
+              <span>{isAudioUnlocked ? "STAGE AUDIO READY" : "CLICK TO UNMUTE AUDIO"}</span>
+            </button>
           </div>
         </div>
 
@@ -159,7 +193,7 @@ export default function PublicCountdownPage() {
           PROTOCOL: TLS_EDGE_DIRECT
         </div>
         <div className="absolute bottom-6 right-6 text-[10px] text-slate-600 uppercase tracking-widest">
-          STATUS: IDLE
+          AUDIO: {isAudioUnlocked ? "ARMED" : "UNINITIALIZED"}
         </div>
       </div>
     );
